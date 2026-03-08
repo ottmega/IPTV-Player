@@ -1,13 +1,48 @@
 {
-  "totalOpens": 3,
+  "totalOpens": 8,
   "uniqueDevices": 1,
   "platforms": {
-    "web": 3
+    "web": 8
   },
   "versions": {
-    "1.0.0": 3
+    "1.0.0": 8
   },
   "recentEvents": [
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:52:00.525Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:51:55.007Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:51:50.246Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:51:45.194Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:51:03.500Z"
+    },
     {
       "type": "app_open",
       "platform": "web",
