@@ -302,13 +302,23 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
           let userInfo: Record<string, string> = {};
 
           onProgress("live", "loading");
+          let userInfoData: Record<string, unknown>;
           try {
-            const [userInfoRes, liveCatRes, liveStreamsRes] = await Promise.allSettled([
-              fetch(`${base}&action=get_user_info`).then((r) => r.json()),
+            userInfoData = await fetch(`${base}&action=get_user_info`).then((r) => r.json());
+          } catch {
+            throw new Error("Cannot connect to server. Please check the server URL.");
+          }
+          const authVal = userInfoData?.user_info ? (userInfoData.user_info as Record<string, unknown>)?.auth : undefined;
+          if (authVal === 0 || authVal === "0") {
+            throw new Error("Invalid username or password.");
+          }
+          userInfo = (userInfoData?.user_info as Record<string, string>) ?? {};
+
+          try {
+            const [liveCatRes, liveStreamsRes] = await Promise.allSettled([
               fetch(`${base}&action=get_live_categories`).then((r) => r.json()),
               fetch(`${base}&action=get_live_streams`).then((r) => r.json()),
             ]);
-            userInfo = userInfoRes.status === "fulfilled" ? userInfoRes.value?.user_info ?? {} : {};
             const liveCategories: Category[] =
               liveCatRes.status === "fulfilled"
                 ? (liveCatRes.value || []).map((c: Record<string, string>) => ({
@@ -406,6 +416,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
 
           const savedAccount: SavedAccount = { loginType: type, credentials: creds };
           await AsyncStorage.setItem(SAVED_ACCOUNT_KEY, JSON.stringify(savedAccount));
+          await AsyncStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
 
           const finalState: Partial<IPTVState> = {
             loginType: type,
@@ -446,6 +457,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
           const userInfo = { username: "M3U User", expDate: "N/A" };
           const savedAccount: SavedAccount = { loginType: type, credentials: creds };
           await AsyncStorage.setItem(SAVED_ACCOUNT_KEY, JSON.stringify(savedAccount));
+          await AsyncStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
 
           const finalState: Partial<IPTVState> = {
             loginType: type,
@@ -467,6 +479,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
           const userInfo = { username: "Stalker User", expDate: "N/A" };
           const savedAccount: SavedAccount = { loginType: type, credentials: creds };
           await AsyncStorage.setItem(SAVED_ACCOUNT_KEY, JSON.stringify(savedAccount));
+          await AsyncStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
           const finalState: Partial<IPTVState> = {
             loginType: type,
             credentials: creds,

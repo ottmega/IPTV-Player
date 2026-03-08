@@ -95,10 +95,17 @@ export default function LoginScreen() {
         Alert.alert("Missing Fields", "Please fill in all fields.");
         return;
       }
-      const serverUrl = xtreamServer.startsWith("http")
-        ? xtreamServer.replace(/\/$/, "")
-        : `http://${xtreamServer}`;
-      creds = { serverUrl, username: xtreamUser, password: xtreamPass };
+      let serverUrl: string;
+      try {
+        const raw = xtreamServer.trim();
+        const withProto = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+        const parsed = new URL(withProto);
+        serverUrl = `${parsed.protocol}//${parsed.host}`;
+      } catch {
+        Alert.alert("Invalid URL", "Please enter a valid server URL (e.g. http://server.com:8080)");
+        return;
+      }
+      creds = { serverUrl, username: xtreamUser.trim(), password: xtreamPass.trim() };
     } else if (activeTab === "m3u") {
       if (!m3uUrl) {
         Alert.alert("Missing Field", "Please enter the M3U playlist URL.");

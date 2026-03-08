@@ -9,6 +9,7 @@ import {
   TextInput,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,7 +29,7 @@ function getNumCols(w: number): number {
 export default function MoviesScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { movies, movieCategories, toggleFavorite, isFavorite } = useIPTV();
+  const { movies, movieCategories, toggleFavorite, isFavorite, loading, loginType } = useIPTV();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -99,7 +100,12 @@ export default function MoviesScreen() {
         )}
       />
 
-      {movies.length === 0 ? (
+      {movies.length === 0 && (loading || loginType) ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={styles.emptySubtitle}>Loading movies...</Text>
+        </View>
+      ) : movies.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="film-outline" size={52} color={Colors.textMuted} />
           <Text style={styles.emptyTitle}>No Movies</Text>
