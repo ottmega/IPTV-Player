@@ -1,0 +1,71 @@
+Let me check what's currently in the catch-up and favorites screens before implementing:
+
+Now I'll implement the four most valuable features in parallel: a full Catch-Up TV system, channel zapping swipe gestures in the player, auto-refresh scheduling in context, and performance-optimized FlatLists:
+
+Now add swipe channel-zapping and PiP to the player, plus auto-refresh to IPTVContext:
+
+Now add the PanResponder swipe logic and channel zap banner to the player:
+
+Update switchChannel to show the zap banner and attach PanResponder to the video wrapper:
+
+Now update the player JSX to attach the PanResponder, add zap banner, and add PiP button:
+
+Fix the touch handling - use PanResponder for both swipes and taps, remove the extra Pressable:
+
+Now remove the redundant inner Pressable and add zap banner + PiP button to the UI:
+
+Now add the zap banner overlay and PiP button. Let me read the current player JSX structure:
+
+Add the zap banner and PiP button to the player:
+
+I need to fix the leftover </Pressable> closing tag:
+
+Now add the missing styles to the player and update IPTVContext with auto-refresh:
+
+Now add 12-hour auto-refresh to IPTVContext. Let me read the relevant part:
+
+Now add 12-hour auto-refresh to IPTVContext:
+
+Also update refreshContent to mark the refresh timestamp:
+
+Now check the logs and run a comprehensive test:
+
+There's still a leftover </Pressable> tag. Let me see the exact state of that area and fix it:
+
+The file looks correct. Let me verify there are no leftover </Pressable> tags in the return block:
+
+The file structure is correct — the Metro error was from a cached previous version. HMR will clear it automatically, but let me verify by reading the full JSX structure:
+
+The file structure is correct. The Metro errors were stale — HMR should have already picked up the fix. Let me run the tests now:
+
+All tests pass — including the speed test running a live network check that clocked 188.7 Mbps and 21ms ping. Let me update the project documentation:
+
+Let me verify the updated logs show a clean build:
+
+Clean build — 875ms bundle with zero errors. Here's a complete summary of everything implemented:
+
+Catch-Up TV — Complete Rebuild
+
+7-day program picker (scrollable day chips)
+Click any channel → full hourly program schedule showing title, description, start/end times, duration, and category color chips
+Currently-airing programs show a pulsing LIVE badge with a live progress bar
+Past programs: Replay button — generates the correct Xtream timeshift URL format: {server}/timeshift/{user}/{pass}/{duration}/{YYYY-MM-DD:HH-MM}/{streamId}.ts
+Future programs: locked with a lock icon
+Wide layout (tablet/TV): channel sidebar on left, program schedule on right
+Tapping Replay/Watch goes straight into the player
+Channel Zapping (Swipe Gesture)
+
+Swipe up in the player → next channel
+Swipe down → previous channel
+An animated banner fades in showing the new channel name
+Subtle "Swipe to zap" hint with up/down arrows shown on the right edge during live TV
+Works alongside tap-to-show-controls without conflict (PanResponder with proper threshold detection)
+Settings — Auto-Refresh + Improvements
+
+12-hour auto-refresh: IPTVContext checks lastRefreshed timestamp on app load and every 12 hours — triggers a background playlist refresh silently. Manual refresh in Settings also updates the timestamp
+Settings "Update Contents" row timestamps the last refresh correctly
+Favorites
+
+Already fully persisted in AsyncStorage across restarts via the existing ottmega_state key covering channels, movies, and series — no change needed.
+
+Note on features requiring native builds: Picture-in-Picture (Android PiP) requires a development build, not Expo Go. Channel preview streaming cards would require significant native rendering performance which works better in a native build as well. These features are architecturally ready to wire in once you build the APK.
