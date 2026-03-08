@@ -40,6 +40,10 @@
       "expo-web-browser",
       "expo-av"
     ],
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
