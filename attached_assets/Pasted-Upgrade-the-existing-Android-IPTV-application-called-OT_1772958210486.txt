@@ -1,0 +1,233 @@
+Upgrade the existing Android IPTV application called "OTTMEGA IPTV".
+
+The app is already built with Flutter and contains the following modules:
+
+Login
+Home Dashboard
+Live TV
+Movies (VOD)
+Series
+Catch Up
+Favorites
+Multi Screen
+Settings
+
+Improve the application with the following requirements.
+
+---
+
+LANDSCAPE MODE
+
+The application must open in landscape orientation by default to provide a TV-friendly interface.
+
+Lock the app orientation to landscape mode on Android devices.
+
+Ensure the layout is optimized for landscape screens.
+
+---
+
+DEFAULT LOGIN TAB
+
+On the login screen:
+
+Xtream Codes must be the default active login tab.
+
+Available login methods:
+
+Xtream Codes
+M3U Playlist
+Stalker Portal
+
+Xtream Codes login fields:
+
+Server URL
+Username
+Password
+
+---
+
+SAVE ACCOUNT DETAILS
+
+When a user logs in:
+
+Save the following information locally using persistent storage:
+
+Server URL
+Username
+Password
+Login type
+
+Use local storage such as SharedPreferences.
+
+When the user logs out:
+
+Do NOT delete the saved account data.
+
+The login screen should still show the saved credentials.
+
+---
+
+AUTO LOGIN
+
+When the app starts:
+
+If valid login credentials exist, automatically log the user in and open the Home Dashboard.
+
+Do not require the user to log in again every time.
+
+---
+
+SESSION PERSISTENCE
+
+Users should not be automatically logged out unless they manually sign out.
+
+Store login sessions securely.
+
+---
+
+MODERN UI DESIGN
+
+Upgrade the interface to a modern IPTV design.
+
+Requirements:
+
+Dark theme
+Smooth gradients
+Rounded cards
+Glassmorphism style panels
+Large TV-friendly buttons
+Modern typography
+Smooth animations
+
+---
+
+HOME DASHBOARD IMPROVEMENTS
+
+Improve the home screen layout with large tiles.
+
+Tiles:
+
+Live TV
+Movies
+Series
+Catch Up
+Favorites
+Multi Screen
+
+Display statistics:
+
+Total channels
+Total movies
+Total series
+
+---
+
+LIVE TV IMPROVEMENTS
+
+Improve the channel browser.
+
+Features:
+
+Category filters
+Search bar
+Channel logos
+Favorite button
+Quick play button
+Fast channel switching
+
+---
+
+VIDEO PLAYER IMPROVEMENTS
+
+Improve the IPTV player experience.
+
+Add:
+
+Hardware decoding
+Auto reconnect
+Buffer control
+Subtitle support
+Aspect ratio options
+Playback speed
+
+Supported formats:
+
+m3u8
+ts
+mp4
+
+---
+
+RESPONSIVE DESIGN
+
+The app must work properly on:
+
+Android phones
+Android tablets
+Android TV
+Fire TV devices
+
+The UI must automatically adapt to screen size.
+
+---
+
+TV REMOTE SUPPORT
+
+Add navigation support for TV remotes.
+
+Use focus-based navigation for Android TV devices.
+
+---
+
+PERFORMANCE OPTIMIZATION
+
+Optimize app performance for IPTV streaming.
+
+Requirements:
+
+Fast channel switching
+Low buffering
+Efficient memory usage
+Hardware acceleration enabled
+
+---
+
+SECURITY
+
+Do not store passwords in plain text.
+
+Encrypt sensitive data before saving locally.
+
+---
+
+PROJECT STRUCTURE
+
+Keep clean architecture:
+
+screens
+components
+services
+models
+player
+storage
+
+---
+
+TESTING
+
+Ensure the app builds and runs successfully.
+
+Verify:
+
+Landscape layout works
+Auto login works
+Saved accounts appear on login screen
+All modules work correctly
+
+---
+
+APK BUILD
+
+Provide instructions for building the APK:
+
+flutter build apk --release

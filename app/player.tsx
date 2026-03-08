@@ -20,6 +20,14 @@ import * as Haptics from "expo-haptics";
 
 const { width, height } = Dimensions.get("window");
 
+const RESIZE_MODES: { mode: ResizeMode; label: string }[] = [
+  { mode: ResizeMode.CONTAIN, label: "Fit" },
+  { mode: ResizeMode.COVER, label: "Fill" },
+  { mode: ResizeMode.STRETCH, label: "Stretch" },
+];
+
+const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ url: string; title: string; logo?: string; type?: string; streamId?: string }>();
@@ -27,37 +35,67 @@ export default function PlayerScreen() {
 
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [showControls, setShowControls] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(true);
-  const [resizeMode, setResizeMode] = useState<ResizeMode>(ResizeMode.CONTAIN);
+  const [resizeModeIdx, setResizeModeIdx] = useState(0);
+  const [speedIdx, setSpeedIdx] = useState(2);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectCount, setReconnectCount] = useState(0);
+
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
-  const isLoading = !status?.isLoaded;
+  const isLoading = !status?.isLoaded || reconnecting;
   const progress = status?.isLoaded && status.durationMillis
     ? status.positionMillis / status.durationMillis
     : 0;
   const positionMs = status?.isLoaded ? status.positionMillis : 0;
   const durationMs = status?.isLoaded ? (status.durationMillis ?? 0) : 0;
+  const isLive = params.type === "live" || durationMs === 0;
 
-  useEffect(() => {
-    return () => {};
-  }, []);
+  const resizeMode = RESIZE_MODES[resizeModeIdx].mode;
+  const resizeModeLabel = RESIZE_MODES[resizeModeIdx].label;
+  const currentSpeed = SPEEDS[speedIdx];
 
   useEffect(() => {
     resetControlsTimer();
-    return () => { if (controlsTimeout.current) clearTimeout(controlsTimeout.current); };
+    return () => {
+      if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+    };
   }, []);
 
   const resetControlsTimer = () => {
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     setShowControls(true);
-    controlsTimeout.current = setTimeout(() => setShowControls(false), 4000);
+    controlsTimeout.current = setTimeout(() => {
+      setShowControls(false);
+      setShowSpeedMenu(false);
+    }, 4500);
   };
 
   const handleTap = () => {
     resetControlsTimer();
   };
+
+  const handleError = useCallback(() => {
+    if (reconnectCount >= 3) {
+      Alert.alert("Stream Error", "Failed to load stream after multiple attempts. The stream may be unavailable.");
+      return;
+    }
+    setReconnecting(true);
+    reconnectTimeout.current = setTimeout(async () => {
+      setReconnecting(false);
+      setReconnectCount((c) => c + 1);
+      try {
+        await videoRef.current?.loadAsync(
+          { uri: decodeURIComponent(params.url) },
+          { shouldPlay: true, rate: currentSpeed }
+        );
+      } catch {}
+    }, 3000);
+  }, [reconnectCount, params.url, currentSpeed]);
 
   const togglePlay = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,11 +117,15 @@ export default function PlayerScreen() {
   const cycleResizeMode = () => {
     Haptics.selectionAsync();
     resetControlsTimer();
-    setResizeMode((prev) => {
-      if (prev === ResizeMode.CONTAIN) return ResizeMode.COVER;
-      if (prev === ResizeMode.COVER) return ResizeMode.STRETCH;
-      return ResizeMode.CONTAIN;
-    });
+    setResizeModeIdx((i) => (i + 1) % RESIZE_MODES.length);
+  };
+
+  const changeSpeed = async (idx: number) => {
+    Haptics.selectionAsync();
+    setSpeedIdx(idx);
+    setShowSpeedMenu(false);
+    resetControlsTimer();
+    await videoRef.current?.setRateAsync(SPEEDS[idx], true);
   };
 
   const formatTime = (ms: number) => {
@@ -118,16 +160,17 @@ export default function PlayerScreen() {
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />
         <Text style={styles.errorText}>No stream URL provided</Text>
-        <Pressable style={styles.backBtn2} onPress={() => router.back()}>
-          <Text style={{ color: Colors.accent }}>Go Back</Text>
+        <Pressable style={styles.errorBtn} onPress={() => router.back()}>
+          <Text style={{ color: Colors.accent, fontFamily: "Inter_500Medium" }}>Go Back</Text>
         </Pressable>
       </View>
     );
   }
 
-  const resizeModeLabel =
-    resizeMode === ResizeMode.CONTAIN ? "Fit" :
-    resizeMode === ResizeMode.COVER ? "Fill" : "Stretch";
+  const topPad = Platform.OS === "web" ? 16 : insets.top || 16;
+  const bottomPad = Platform.OS === "web" ? 16 : insets.bottom || 16;
+  const leftPad = Platform.OS === "web" ? 16 : insets.left || 16;
+  const rightPad = Platform.OS === "web" ? 16 : insets.right || 16;
 
   return (
     <View style={styles.container}>
@@ -141,61 +184,90 @@ export default function PlayerScreen() {
           shouldPlay
           useNativeControls={false}
           onPlaybackStatusUpdate={setStatus}
-          onError={() => Alert.alert("Error", "Failed to load stream. The stream may be unavailable.")}
+          onError={handleError}
+          rate={currentSpeed}
         />
 
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator color={Colors.accent} size="large" />
-            <Text style={styles.bufferingText}>Loading stream...</Text>
+            <Text style={styles.bufferingText}>
+              {reconnecting ? `Reconnecting... (${reconnectCount + 1}/3)` : "Loading stream..."}
+            </Text>
           </View>
         )}
 
         {showControls && (
-          <View style={styles.controls}>
-            <View style={[styles.topBar, { paddingTop: Platform.OS === "web" ? 16 : insets.top || 16 }]}>
+          <View style={styles.controls} pointerEvents="box-none">
+            <View style={[styles.topBar, { paddingTop: topPad, paddingLeft: leftPad, paddingRight: rightPad }]}>
               <Pressable style={styles.iconBtn} onPress={handleBack}>
-                <Ionicons name="chevron-back" size={24} color="#fff" />
+                <Ionicons name="chevron-back" size={22} color="#fff" />
               </Pressable>
               <Text style={styles.titleText} numberOfLines={1}>{params.title}</Text>
-              <Pressable style={styles.iconBtn} onPress={cycleResizeMode}>
-                <Text style={styles.resizeLabel}>{resizeModeLabel}</Text>
-              </Pressable>
+              <View style={styles.topControls}>
+                {!isLive && (
+                  <Pressable
+                    style={styles.iconBtn}
+                    onPress={() => { setShowSpeedMenu((v) => !v); resetControlsTimer(); }}
+                  >
+                    <Text style={styles.speedLabel}>{currentSpeed === 1 ? "1x" : `${currentSpeed}x`}</Text>
+                  </Pressable>
+                )}
+                <Pressable style={styles.iconBtn} onPress={cycleResizeMode}>
+                  <Text style={styles.resizeBtnLabel}>{resizeModeLabel}</Text>
+                </Pressable>
+              </View>
             </View>
+
+            {showSpeedMenu && (
+              <View style={[styles.speedMenu, { top: topPad + 52, right: rightPad + 48 }]}>
+                {SPEEDS.map((s, i) => (
+                  <Pressable
+                    key={s}
+                    style={[styles.speedMenuItem, i === speedIdx && styles.speedMenuItemActive]}
+                    onPress={() => changeSpeed(i)}
+                  >
+                    <Text style={[styles.speedMenuText, i === speedIdx && styles.speedMenuTextActive]}>
+                      {s === 1 ? "Normal" : `${s}x`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             <View style={styles.centerControls}>
-              <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
-                <Ionicons name="play-back" size={28} color="#fff" />
-                <Text style={styles.seekLabel}>10s</Text>
-              </Pressable>
+              {!isLive && (
+                <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
+                  <Ionicons name="play-back" size={26} color="#fff" />
+                  <Text style={styles.seekLabel}>10s</Text>
+                </Pressable>
+              )}
               <Pressable style={styles.playBtn} onPress={togglePlay}>
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={40}
-                  color="#fff"
-                />
+                <Ionicons name={isPlaying ? "pause" : "play"} size={38} color="#fff" />
               </Pressable>
-              <Pressable style={styles.seekBtn} onPress={() => seek(10)}>
-                <Ionicons name="play-forward" size={28} color="#fff" />
-                <Text style={styles.seekLabel}>10s</Text>
-              </Pressable>
+              {!isLive && (
+                <Pressable style={styles.seekBtn} onPress={() => seek(10)}>
+                  <Ionicons name="play-forward" size={26} color="#fff" />
+                  <Text style={styles.seekLabel}>10s</Text>
+                </Pressable>
+              )}
             </View>
 
-            <View style={[styles.bottomBar, { paddingBottom: Platform.OS === "web" ? 16 : insets.bottom || 16 }]}>
-              {durationMs > 0 && (
-                <>
-                  <Text style={styles.timeText}>{formatTime(positionMs)}</Text>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-                  </View>
-                  <Text style={styles.timeText}>{formatTime(durationMs)}</Text>
-                </>
-              )}
-              {durationMs === 0 && params.type === "live" && (
+            <View style={[styles.bottomBar, { paddingBottom: bottomPad + 4, paddingLeft: leftPad, paddingRight: rightPad }]}>
+              {isLive ? (
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
                   <Text style={styles.liveText}>LIVE</Text>
                 </View>
+              ) : (
+                <>
+                  <Text style={styles.timeText}>{formatTime(positionMs)}</Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%` as any }]} />
+                    <View style={[styles.progressThumb, { left: `${Math.min(progress * 100, 100)}%` as any }]} />
+                  </View>
+                  <Text style={styles.timeText}>{formatTime(durationMs)}</Text>
+                </>
               )}
             </View>
           </View>
@@ -221,8 +293,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    gap: 12,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    gap: 14,
   },
   bufferingText: {
     color: "#fff",
@@ -231,41 +303,78 @@ const styles = StyleSheet.create({
   },
   controls: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.38)",
     justifyContent: "space-between",
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 12,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
   titleText: {
     flex: 1,
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "Inter_600SemiBold",
     textAlign: "center",
   },
-  resizeLabel: {
+  topControls: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  speedLabel: {
     color: "#fff",
     fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  resizeBtnLabel: {
+    color: "#fff",
+    fontSize: 11,
     fontFamily: "Inter_600SemiBold",
+  },
+  speedMenu: {
+    position: "absolute",
+    backgroundColor: "rgba(10,10,20,0.95)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    overflow: "hidden",
+    minWidth: 120,
+    zIndex: 20,
+  },
+  speedMenuItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  speedMenuItemActive: {
+    backgroundColor: Colors.accentSoft,
+  },
+  speedMenuText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+  speedMenuTextActive: {
+    color: Colors.accent,
+    fontFamily: "Inter_700Bold",
   },
   centerControls: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 40,
+    gap: 48,
   },
   seekBtn: {
     alignItems: "center",
@@ -277,19 +386,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   playBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: "rgba(255,255,255,0.35)",
   },
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
     paddingTop: 12,
     gap: 10,
   },
@@ -297,19 +405,29 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontFamily: "Inter_500Medium",
-    minWidth: 40,
+    minWidth: 44,
   },
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "rgba(255,255,255,0.25)",
     borderRadius: 2,
-    overflow: "hidden",
+    overflow: "visible",
+    position: "relative",
   },
   progressFill: {
     height: "100%",
     backgroundColor: Colors.accent,
     borderRadius: 2,
+  },
+  progressThumb: {
+    position: "absolute",
+    top: -5,
+    marginLeft: -6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#fff",
   },
   liveBadge: {
     flexDirection: "row",
@@ -317,8 +435,8 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.danger,
     borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   liveDot: {
     width: 6,
@@ -344,7 +462,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_500Medium",
   },
-  backBtn2: {
+  errorBtn: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,

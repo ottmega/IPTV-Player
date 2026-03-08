@@ -110,6 +110,11 @@ export interface EPGItem {
   channelId: string;
 }
 
+export interface SavedAccount {
+  loginType: LoginType;
+  credentials: Credentials;
+}
+
 export interface IPTVState {
   loginType: LoginType | null;
   credentials: Credentials | null;
@@ -128,6 +133,8 @@ export interface IPTVState {
   history: WatchHistoryItem[];
   loading: boolean;
   error: string | null;
+  initialized: boolean;
+  savedAccount: SavedAccount | null;
 }
 
 interface IPTVContextValue extends IPTVState {
@@ -145,6 +152,7 @@ interface IPTVContextValue extends IPTVState {
 const IPTVContext = createContext<IPTVContextValue | null>(null);
 
 const STORAGE_KEY = "ottmega_state";
+const SAVED_ACCOUNT_KEY = "ottmega_saved_account";
 
 function parseM3U(text: string): { channels: Channel[]; categories: Category[] } {
   const lines = text.split("\n");
@@ -193,22 +201,26 @@ function parseM3U(text: string): { channels: Channel[]; categories: Category[] }
   return { channels, categories };
 }
 
+const INITIAL_STATE: IPTVState = {
+  loginType: null,
+  credentials: null,
+  userInfo: null,
+  channels: [],
+  liveCategories: [],
+  movies: [],
+  movieCategories: [],
+  series: [],
+  seriesCategories: [],
+  favorites: { channels: [], movies: [], series: [] },
+  history: [],
+  loading: false,
+  error: null,
+  initialized: false,
+  savedAccount: null,
+};
+
 export function IPTVProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<IPTVState>({
-    loginType: null,
-    credentials: null,
-    userInfo: null,
-    channels: [],
-    liveCategories: [],
-    movies: [],
-    movieCategories: [],
-    series: [],
-    seriesCategories: [],
-    favorites: { channels: [], movies: [], series: [] },
-    history: [],
-    loading: false,
-    error: null,
-  });
+  const [state, setState] = useState<IPTVState>(INITIAL_STATE);
 
   useEffect(() => {
     loadSavedState();
@@ -216,12 +228,20 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
 
   const loadSavedState = async () => {
     try {
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      const [saved, savedAccountRaw] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEY),
+        AsyncStorage.getItem(SAVED_ACCOUNT_KEY),
+      ]);
+      const savedAccount = savedAccountRaw ? JSON.parse(savedAccountRaw) as SavedAccount : null;
       if (saved) {
         const parsed = JSON.parse(saved);
-        setState((prev) => ({ ...prev, ...parsed }));
+        setState((prev) => ({ ...prev, ...parsed, initialized: true, savedAccount }));
+      } else {
+        setState((prev) => ({ ...prev, initialized: true, savedAccount }));
       }
-    } catch {}
+    } catch {
+      setState((prev) => ({ ...prev, initialized: true }));
+    }
   };
 
   const saveState = async (update: Partial<IPTVState>) => {
@@ -323,7 +343,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
           : [];
 
       return { userInfo, liveCategories, channels, movieCategories, movies, seriesCategories, series };
-    } catch (e) {
+    } catch {
       throw new Error("Failed to fetch content from server");
     }
   };
@@ -361,6 +381,9 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
         userInfo = { username: "Stalker User", expDate: "N/A" };
       }
 
+      const savedAccount: SavedAccount = { loginType: type, credentials: creds };
+      await AsyncStorage.setItem(SAVED_ACCOUNT_KEY, JSON.stringify(savedAccount));
+
       const newState: Partial<IPTVState> = {
         loginType: type,
         credentials: creds,
@@ -373,6 +396,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
         seriesCategories,
         loading: false,
         error: null,
+        savedAccount,
       };
 
       setState((prev) => ({ ...prev, ...newState }));
@@ -390,22 +414,14 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
   }, [state.loginType, state.credentials, login]);
 
   const logout = useCallback(() => {
-    setState({
-      loginType: null,
-      credentials: null,
-      userInfo: null,
-      channels: [],
-      liveCategories: [],
-      movies: [],
-      movieCategories: [],
-      series: [],
-      seriesCategories: [],
-      favorites: { channels: [], movies: [], series: [] },
-      history: [],
-      loading: false,
-      error: null,
-    });
-    AsyncStorage.removeItem(STORAGE_KEY);
+    setState((prev) => ({
+      ...INITIAL_STATE,
+      initialized: true,
+      savedAccount: prev.savedAccount,
+      favorites: prev.favorites,
+      history: prev.history,
+    }));
+    AsyncStorage.multiRemove([STORAGE_KEY]).catch(() => {});
   }, []);
 
   const toggleFavorite = useCallback(
