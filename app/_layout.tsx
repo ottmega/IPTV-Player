@@ -27,6 +27,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="player" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="epg" />
+      <Stack.Screen name="speedtest" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="multiscreen" />
       <Stack.Screen name="favorites" />
       <Stack.Screen name="search" />

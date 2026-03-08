@@ -1,0 +1,336 @@
+Upgrade the OTTMEGA IPTV Flutter application to include a full professional IPTV player system similar to XCIPTV or IPTV Smarters.
+
+The application must support Android phones, tablets, Android TV and Smart TV devices.
+
+---
+
+LOGIN SYSTEM
+
+Support the following login methods:
+
+1. Xtream Codes API
+2. M3U Playlist URL
+3. Stalker Portal MAC login
+
+Login screen must open in portrait mode.
+
+After successful login the entire application switches to landscape mode automatically.
+
+---
+
+HOME DASHBOARD
+
+Create a modern IPTV dashboard with the following sections:
+
+Live TV
+Movies (VOD)
+Series
+EPG Guide
+Multi Screen
+Catch Up
+Favorites
+Radio
+Settings
+
+Show:
+
+recently watched
+continue watching
+content statistics
+
+---
+
+LIVE TV SYSTEM
+
+Implement a full Live TV interface with:
+
+channel categories
+favorite channels
+search channels
+grid view
+list view
+channel logos
+quality badges (4K, FHD, HD)
+
+Left sidebar category list on TV layout.
+
+Mobile layout must show categories as horizontal scroll.
+
+---
+
+EPG GUIDE SYSTEM
+
+Create a full EPG TV guide interface.
+
+Features:
+
+timeline guide
+program schedule
+channel logos
+program descriptions
+date switching
+EPG catchup playback
+
+---
+
+MOVIES (VOD)
+
+Movie section must include:
+
+poster grid
+movie categories
+search movies
+movie detail page
+
+Detail page must show:
+
+poster
+rating
+genre
+release date
+description
+play button
+
+---
+
+SERIES SYSTEM
+
+Series section must include:
+
+series poster grid
+seasons
+episodes list
+
+Episode detail page must include:
+
+episode number
+episode title
+description
+play button
+
+---
+
+MULTI SCREEN FEATURE
+
+Add multi screen viewing.
+
+Support:
+
+2 screen mode
+4 screen mode
+
+Users must be able to watch multiple channels simultaneously.
+
+---
+
+VIDEO PLAYER SYSTEM
+
+Implement a professional IPTV video player.
+
+Player must support:
+
+ExoPlayer
+VLC Player
+
+Users can switch player type in settings.
+
+Player controls must include:
+
+play
+pause
+forward
+rewind
+next channel
+previous channel
+subtitle toggle
+audio track selection
+video track selection
+playback speed
+aspect ratio
+picture in picture
+
+---
+
+SUBTITLE SYSTEM
+
+Support subtitles.
+
+User can choose subtitle track.
+
+Example:
+
+Disable
+English
+Hindi
+Arabic
+
+---
+
+AUDIO TRACK SWITCH
+
+Support multiple audio tracks.
+
+User can switch audio language while playing video.
+
+---
+
+VIDEO QUALITY SWITCH
+
+Support multiple video tracks.
+
+User can change video quality manually.
+
+---
+
+PLAYER INFO BAR
+
+Display information while playing:
+
+movie name
+episode number
+genre
+release date
+progress bar
+current time
+total duration
+
+---
+
+PARENTAL CONTROL
+
+Implement parental control system.
+
+Default PIN: 0000
+
+Users must enter PIN to open locked content.
+
+---
+
+SETTINGS SYSTEM
+
+Create a full settings panel with:
+
+App Info
+Account Info
+Player Settings
+Stream Type
+Update Contents
+Parental Control
+Speed Test
+Backup & Restore
+Remote Control
+Language
+Support
+Clear Cache
+Sign Out
+
+---
+
+STREAM TYPE SELECTION
+
+Allow users to choose stream type:
+
+HLS (m3u8)
+MPEGTS
+
+---
+
+PLAYER ENGINE SELECTION
+
+Users must be able to choose:
+
+EXO Player
+VLC Player
+
+---
+
+SPEED TEST
+
+Implement internet speed test inside the app.
+
+Display:
+
+Ping
+Download Speed
+Upload Speed
+
+---
+
+REMOTE CONTROL PAIRING
+
+Implement remote control pairing system.
+
+Display a pairing code.
+
+Allow remote control app connection.
+
+---
+
+LANGUAGE SYSTEM
+
+Add multi language support.
+
+Example languages:
+
+English
+Arabic
+Hindi
+Chinese
+French
+Spanish
+
+---
+
+ACCOUNT INFORMATION
+
+Display Xtream account details:
+
+username
+status
+max connections
+expiry date
+server message
+
+---
+
+CACHE SYSTEM
+
+Add clear cache option.
+
+---
+
+CONTENT UPDATE
+
+Add manual "Update Contents" button to reload playlists.
+
+---
+
+RESPONSIVE UI
+
+Application must support:
+
+mobile devices
+tablets
+Android TV
+
+Mobile layout must automatically adjust grid size.
+
+---
+
+PERFORMANCE
+
+Optimize for large IPTV playlists.
+
+Implement:
+
+lazy loading
+fast channel switching
+memory optimization
+
+---
+
+FINAL BUILD
+
+Ensure the application builds successfully.
+
+flutter build apk --release

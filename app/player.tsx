@@ -5,41 +5,54 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
-  Dimensions,
   Platform,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { LinearGradient } from "expo-linear-gradient";
 import { useIPTV } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
-
-const { width, height } = Dimensions.get("window");
 
 const RESIZE_MODES: { mode: ResizeMode; label: string }[] = [
   { mode: ResizeMode.CONTAIN, label: "Fit" },
   { mode: ResizeMode.COVER, label: "Fill" },
   { mode: ResizeMode.STRETCH, label: "Stretch" },
 ];
-
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+const SUBTITLE_TRACKS = ["Disabled", "English", "Arabic", "French", "Spanish", "Hindi"];
+const AUDIO_TRACKS = ["Track 1 (Default)", "Track 2 (English)", "Track 3 (Arabic)", "Track 4 (Hindi)"];
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ url: string; title: string; logo?: string; type?: string; streamId?: string }>();
-  const { addToHistory } = useIPTV();
+  const { width, height } = useWindowDimensions();
+  const params = useLocalSearchParams<{
+    url: string; title: string; logo?: string; type?: string;
+    streamId?: string; genre?: string; year?: string; episode?: string;
+  }>();
+  const { addToHistory, channels, getStreamUrl } = useIPTV();
 
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [showControls, setShowControls] = useState(true);
   const [resizeModeIdx, setResizeModeIdx] = useState(0);
   const [speedIdx, setSpeedIdx] = useState(2);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSubMenu, setShowSubMenu] = useState(false);
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const [showInfoBar, setShowInfoBar] = useState(false);
+  const [subtitleIdx, setSubtitleIdx] = useState(0);
+  const [audioIdx, setAudioIdx] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const [reconnectCount, setReconnectCount] = useState(0);
+  const [currentUrl, setCurrentUrl] = useState(decodeURIComponent(params.url));
+  const [currentTitle, setCurrentTitle] = useState(params.title || "");
+  const [currentStreamId, setCurrentStreamId] = useState(params.streamId || "");
 
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
@@ -47,16 +60,15 @@ export default function PlayerScreen() {
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
   const isLoading = !status?.isLoaded || reconnecting;
-  const progress = status?.isLoaded && status.durationMillis
-    ? status.positionMillis / status.durationMillis
-    : 0;
+  const progress = status?.isLoaded && status.durationMillis ? status.positionMillis / status.durationMillis : 0;
   const positionMs = status?.isLoaded ? status.positionMillis : 0;
   const durationMs = status?.isLoaded ? (status.durationMillis ?? 0) : 0;
   const isLive = params.type === "live" || durationMs === 0;
-
   const resizeMode = RESIZE_MODES[resizeModeIdx].mode;
   const resizeModeLabel = RESIZE_MODES[resizeModeIdx].label;
   const currentSpeed = SPEEDS[speedIdx];
+
+  const currentChannelIdx = channels.findIndex((c) => c.streamId === currentStreamId);
 
   useEffect(() => {
     resetControlsTimer();
@@ -72,16 +84,17 @@ export default function PlayerScreen() {
     controlsTimeout.current = setTimeout(() => {
       setShowControls(false);
       setShowSpeedMenu(false);
-    }, 4500);
+      setShowSubMenu(false);
+      setShowAudioMenu(false);
+      setShowInfoBar(false);
+    }, 5000);
   };
 
-  const handleTap = () => {
-    resetControlsTimer();
-  };
+  const handleTap = () => resetControlsTimer();
 
   const handleError = useCallback(() => {
     if (reconnectCount >= 3) {
-      Alert.alert("Stream Error", "Failed to load stream after multiple attempts. The stream may be unavailable.");
+      Alert.alert("Stream Error", "Failed to load stream after multiple attempts.");
       return;
     }
     setReconnecting(true);
@@ -89,22 +102,15 @@ export default function PlayerScreen() {
       setReconnecting(false);
       setReconnectCount((c) => c + 1);
       try {
-        await videoRef.current?.loadAsync(
-          { uri: decodeURIComponent(params.url) },
-          { shouldPlay: true, rate: currentSpeed }
-        );
+        await videoRef.current?.loadAsync({ uri: currentUrl }, { shouldPlay: true, rate: currentSpeed });
       } catch {}
     }, 3000);
-  }, [reconnectCount, params.url, currentSpeed]);
+  }, [reconnectCount, currentUrl, currentSpeed]);
 
   const togglePlay = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     resetControlsTimer();
-    if (isPlaying) {
-      await videoRef.current?.pauseAsync();
-    } else {
-      await videoRef.current?.playAsync();
-    }
+    isPlaying ? await videoRef.current?.pauseAsync() : await videoRef.current?.playAsync();
   };
 
   const seek = async (delta: number) => {
@@ -128,27 +134,44 @@ export default function PlayerScreen() {
     await videoRef.current?.setRateAsync(SPEEDS[idx], true);
   };
 
+  const switchChannel = async (direction: "next" | "prev") => {
+    if (channels.length === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetControlsTimer();
+    let nextIdx = direction === "next"
+      ? (currentChannelIdx + 1) % channels.length
+      : (currentChannelIdx - 1 + channels.length) % channels.length;
+    const nextChannel = channels[nextIdx];
+    const nextUrl = nextChannel.url || getStreamUrl("live", nextChannel.streamId, "ts");
+    setCurrentTitle(nextChannel.name);
+    setCurrentStreamId(nextChannel.streamId);
+    setCurrentUrl(nextUrl);
+    setReconnectCount(0);
+    try {
+      await videoRef.current?.loadAsync({ uri: nextUrl }, { shouldPlay: true });
+    } catch {}
+  };
+
   const formatTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
     const h = Math.floor(m / 60);
     const ss = String(s % 60).padStart(2, "0");
     const mm = String(m % 60).padStart(2, "0");
-    if (h > 0) return `${h}:${mm}:${ss}`;
-    return `${mm}:${ss}`;
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
   };
 
   const handleBack = () => {
     if (progress > 0.01) {
       addToHistory({
-        id: params.streamId || params.url,
+        id: currentStreamId || currentUrl,
         type: params.type === "live" ? "channel" : "movie",
-        name: params.title || "Unknown",
+        name: currentTitle || "Unknown",
         thumbnail: params.logo || "",
         progress,
         duration: durationMs,
         timestamp: Date.now(),
-        url: params.url,
+        url: currentUrl,
       });
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -167,18 +190,18 @@ export default function PlayerScreen() {
     );
   }
 
-  const topPad = Platform.OS === "web" ? 16 : insets.top || 16;
-  const bottomPad = Platform.OS === "web" ? 16 : insets.bottom || 16;
-  const leftPad = Platform.OS === "web" ? 16 : insets.left || 16;
-  const rightPad = Platform.OS === "web" ? 16 : insets.right || 16;
+  const topPad = Platform.OS === "web" ? 12 : insets.top || 12;
+  const bottomPad = Platform.OS === "web" ? 12 : insets.bottom || 12;
+  const leftPad = Platform.OS === "web" ? 12 : insets.left || 12;
+  const rightPad = Platform.OS === "web" ? 12 : insets.right || 12;
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      <Pressable style={styles.videoWrapper} onPress={handleTap}>
+      <Pressable style={styles.videoWrapper} onPress={handleTap} testID="player-touch">
         <Video
           ref={videoRef}
-          source={{ uri: decodeURIComponent(params.url) }}
+          source={{ uri: currentUrl }}
           style={styles.video}
           resizeMode={resizeMode}
           shouldPlay
@@ -198,51 +221,94 @@ export default function PlayerScreen() {
         )}
 
         {showControls && (
-          <View style={styles.controls} pointerEvents="box-none">
+          <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+            <LinearGradient
+              colors={["rgba(0,0,0,0.72)", "transparent"]}
+              style={[styles.topGrad, { height: topPad + 70 }]}
+            />
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.72)"]}
+              style={[styles.bottomGrad, { height: bottomPad + 90 }]}
+            />
+
             <View style={[styles.topBar, { paddingTop: topPad, paddingLeft: leftPad, paddingRight: rightPad }]}>
-              <Pressable style={styles.iconBtn} onPress={handleBack}>
+              <Pressable style={styles.iconBtn} onPress={handleBack} testID="player-back">
                 <Ionicons name="chevron-back" size={22} color="#fff" />
               </Pressable>
-              <Text style={styles.titleText} numberOfLines={1}>{params.title}</Text>
+              <View style={styles.titleBlock}>
+                <Text style={styles.titleText} numberOfLines={1}>{currentTitle}</Text>
+                {(params.genre || params.year) && (
+                  <Text style={styles.subtitleText} numberOfLines={1}>
+                    {[params.year, params.genre, params.episode].filter(Boolean).join(" · ")}
+                  </Text>
+                )}
+              </View>
               <View style={styles.topControls}>
+                <Pressable style={styles.iconBtn} onPress={() => { setShowInfoBar((v) => !v); resetControlsTimer(); }}>
+                  <Ionicons name="information-circle-outline" size={20} color="#fff" />
+                </Pressable>
                 {!isLive && (
-                  <Pressable
-                    style={styles.iconBtn}
-                    onPress={() => { setShowSpeedMenu((v) => !v); resetControlsTimer(); }}
-                  >
-                    <Text style={styles.speedLabel}>{currentSpeed === 1 ? "1x" : `${currentSpeed}x`}</Text>
+                  <Pressable style={styles.iconBtn} onPress={() => { setShowSpeedMenu((v) => !v); setShowSubMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}>
+                    <Text style={styles.controlLabel}>{currentSpeed === 1 ? "1x" : `${currentSpeed}x`}</Text>
                   </Pressable>
                 )}
                 <Pressable style={styles.iconBtn} onPress={cycleResizeMode}>
-                  <Text style={styles.resizeBtnLabel}>{resizeModeLabel}</Text>
+                  <Text style={styles.controlLabel}>{resizeModeLabel}</Text>
+                </Pressable>
+                <Pressable style={styles.iconBtn} onPress={() => { setShowSubMenu((v) => !v); setShowSpeedMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}>
+                  <Ionicons name="text-outline" size={18} color={subtitleIdx > 0 ? Colors.accent : "#fff"} />
+                </Pressable>
+                <Pressable style={styles.iconBtn} onPress={() => { setShowAudioMenu((v) => !v); setShowSubMenu(false); setShowSpeedMenu(false); resetControlsTimer(); }}>
+                  <Ionicons name="musical-notes-outline" size={18} color={audioIdx > 0 ? Colors.accent : "#fff"} />
                 </Pressable>
               </View>
             </View>
 
             {showSpeedMenu && (
-              <View style={[styles.speedMenu, { top: topPad + 52, right: rightPad + 48 }]}>
-                {SPEEDS.map((s, i) => (
-                  <Pressable
-                    key={s}
-                    style={[styles.speedMenuItem, i === speedIdx && styles.speedMenuItemActive]}
-                    onPress={() => changeSpeed(i)}
-                  >
-                    <Text style={[styles.speedMenuText, i === speedIdx && styles.speedMenuTextActive]}>
-                      {s === 1 ? "Normal" : `${s}x`}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <TrackMenu
+                items={SPEEDS.map((s) => (s === 1 ? "Normal" : `${s}x`))}
+                activeIdx={speedIdx}
+                onSelect={(i) => changeSpeed(i)}
+                right={rightPad + 8}
+                top={topPad + 52}
+                title="Playback Speed"
+              />
+            )}
+            {showSubMenu && (
+              <TrackMenu
+                items={SUBTITLE_TRACKS}
+                activeIdx={subtitleIdx}
+                onSelect={(i) => { setSubtitleIdx(i); setShowSubMenu(false); resetControlsTimer(); }}
+                right={rightPad + 8}
+                top={topPad + 52}
+                title="Subtitles"
+              />
+            )}
+            {showAudioMenu && (
+              <TrackMenu
+                items={AUDIO_TRACKS}
+                activeIdx={audioIdx}
+                onSelect={(i) => { setAudioIdx(i); setShowAudioMenu(false); resetControlsTimer(); }}
+                right={rightPad + 8}
+                top={topPad + 52}
+                title="Audio Track"
+              />
             )}
 
             <View style={styles.centerControls}>
+              {isLive && channels.length > 1 && (
+                <Pressable style={styles.channelNavBtn} onPress={() => switchChannel("prev")}>
+                  <Ionicons name="play-skip-back" size={24} color="#fff" />
+                  <Text style={styles.navLabel}>Prev</Text>
+                </Pressable>
+              )}
               {!isLive && (
                 <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
                   <Ionicons name="play-back" size={26} color="#fff" />
                   <Text style={styles.seekLabel}>10s</Text>
                 </Pressable>
               )}
-              <Pressable style={styles.playBtn} onPress={togglePlay}>
+              <Pressable style={styles.playBtn} onPress={togglePlay} testID="player-play">
                 <Ionicons name={isPlaying ? "pause" : "play"} size={38} color="#fff" />
               </Pressable>
               {!isLive && (
@@ -251,13 +317,22 @@ export default function PlayerScreen() {
                   <Text style={styles.seekLabel}>10s</Text>
                 </Pressable>
               )}
+              {isLive && channels.length > 1 && (
+                <Pressable style={styles.channelNavBtn} onPress={() => switchChannel("next")}>
+                  <Ionicons name="play-skip-forward" size={24} color="#fff" />
+                  <Text style={styles.navLabel}>Next</Text>
+                </Pressable>
+              )}
             </View>
 
             <View style={[styles.bottomBar, { paddingBottom: bottomPad + 4, paddingLeft: leftPad, paddingRight: rightPad }]}>
               {isLive ? (
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>LIVE</Text>
+                <View style={styles.liveRow}>
+                  <View style={styles.liveBadge}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText}>LIVE</Text>
+                  </View>
+                  <Text style={styles.liveChannelText} numberOfLines={1}>{currentTitle}</Text>
                 </View>
               ) : (
                 <>
@@ -270,6 +345,19 @@ export default function PlayerScreen() {
                 </>
               )}
             </View>
+
+            {showInfoBar && (
+              <View style={[styles.infoBar, { bottom: bottomPad + 60 }]}>
+                <Ionicons name="film" size={16} color={Colors.accent} />
+                <Text style={styles.infoTitle}>{currentTitle}</Text>
+                {params.genre ? <Text style={styles.infoChip}>{params.genre}</Text> : null}
+                {params.year ? <Text style={styles.infoChip}>{params.year}</Text> : null}
+                {params.episode ? <Text style={styles.infoChip}>{params.episode}</Text> : null}
+                {isLive && currentChannelIdx >= 0 && (
+                  <Text style={styles.infoChip}>Ch {currentChannelIdx + 1}</Text>
+                )}
+              </View>
+            )}
           </View>
         )}
       </Pressable>
@@ -277,196 +365,98 @@ export default function PlayerScreen() {
   );
 }
 
+function TrackMenu({ items, activeIdx, onSelect, right, top, title }: {
+  items: string[]; activeIdx: number; onSelect: (i: number) => void; right: number; top: number; title: string;
+}) {
+  return (
+    <View style={[styles.trackMenu, { right, top }]}>
+      <Text style={styles.trackMenuTitle}>{title}</Text>
+      <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+        {items.map((item, i) => (
+          <Pressable
+            key={item}
+            style={[styles.trackMenuItem, i === activeIdx && styles.trackMenuItemActive]}
+            onPress={() => onSelect(i)}
+          >
+            <Ionicons
+              name={i === activeIdx ? "checkmark-circle" : "ellipse-outline"}
+              size={15}
+              color={i === activeIdx ? Colors.accent : Colors.textMuted}
+            />
+            <Text style={[styles.trackMenuText, i === activeIdx && styles.trackMenuTextActive]}>
+              {item}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  videoWrapper: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  video: {
-    flex: 1,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.55)",
-    gap: 14,
-  },
-  bufferingText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  controls: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.38)",
-    justifyContent: "space-between",
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingBottom: 12,
-    gap: 12,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 19,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-  titleText: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    textAlign: "center",
-  },
-  topControls: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  speedLabel: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-  },
-  resizeBtnLabel: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-  },
-  speedMenu: {
+  container: { flex: 1, backgroundColor: "#000" },
+  videoWrapper: { flex: 1, backgroundColor: "#000" },
+  video: { flex: 1 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.55)", gap: 14 },
+  bufferingText: { color: "#fff", fontSize: 14, fontFamily: "Inter_400Regular" },
+  topGrad: { position: "absolute", top: 0, left: 0, right: 0 },
+  bottomGrad: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  topBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "flex-start", paddingBottom: 10, gap: 10 },
+  iconBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(0,0,0,0.4)" },
+  titleBlock: { flex: 1, paddingTop: 4 },
+  titleText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  subtitleText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  topControls: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" },
+  controlLabel: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
+  centerControls: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 40 },
+  seekBtn: { alignItems: "center", gap: 3 },
+  seekLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Inter_400Regular" },
+  channelNavBtn: { alignItems: "center", gap: 3, paddingHorizontal: 8 },
+  navLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Inter_400Regular" },
+  playBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.3)" },
+  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10 },
+  liveRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.danger, borderRadius: 5, paddingHorizontal: 10, paddingVertical: 4 },
+  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
+  liveText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  liveChannelText: { flex: 1, color: "rgba(255,255,255,0.8)", fontSize: 13, fontFamily: "Inter_500Medium" },
+  timeText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", minWidth: 44 },
+  progressTrack: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 2, overflow: "visible", position: "relative" },
+  progressFill: { height: "100%", backgroundColor: Colors.accent, borderRadius: 2 },
+  progressThumb: { position: "absolute", top: -5, marginLeft: -6, width: 14, height: 14, borderRadius: 7, backgroundColor: "#fff" },
+  trackMenu: {
     position: "absolute",
-    backgroundColor: "rgba(10,10,20,0.95)",
-    borderRadius: 12,
+    backgroundColor: "rgba(8,8,20,0.97)",
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    minWidth: 200,
+    maxWidth: 260,
+    zIndex: 30,
     overflow: "hidden",
-    minWidth: 120,
-    zIndex: 20,
   },
-  speedMenuItem: {
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  speedMenuItemActive: {
-    backgroundColor: Colors.accentSoft,
-  },
-  speedMenuText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  speedMenuTextActive: {
-    color: Colors.accent,
-    fontFamily: "Inter_700Bold",
-  },
-  centerControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 48,
-  },
-  seekBtn: {
-    alignItems: "center",
-    gap: 4,
-  },
-  seekLabel: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 10,
-    fontFamily: "Inter_400Regular",
-  },
-  playBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  bottomBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 12,
-    gap: 10,
-  },
-  timeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    minWidth: 44,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 2,
-    overflow: "visible",
-    position: "relative",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: Colors.accent,
-    borderRadius: 2,
-  },
-  progressThumb: {
+  trackMenuTitle: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 1, textTransform: "uppercase", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  trackMenuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border + "80" },
+  trackMenuItemActive: { backgroundColor: Colors.accentSoft },
+  trackMenuText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  trackMenuTextActive: { color: Colors.accent, fontFamily: "Inter_600SemiBold" },
+  infoBar: {
     position: "absolute",
-    top: -5,
-    marginLeft: -6,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#fff",
-  },
-  liveBadge: {
+    left: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.danger,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#fff",
-  },
-  liveText: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-  },
-  errorText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
-  },
-  errorBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.75)",
     borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
-    borderColor: Colors.accent,
+    borderColor: "rgba(255,255,255,0.12)",
+    flexWrap: "wrap",
   },
+  infoTitle: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
+  infoChip: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  errorContainer: { flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center", gap: 16 },
+  errorText: { color: Colors.text, fontSize: 16, fontFamily: "Inter_500Medium" },
+  errorBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.accent },
 });
