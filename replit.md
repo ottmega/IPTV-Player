@@ -30,6 +30,7 @@ OTTMEGA IPTV is a media player application that allows users to play IPTV stream
 - Auto-playlist refresh every 12 hours via background timer in IPTVContext
 - Privacy Policy and Terms of Service (Play Store compliant)
 - Legal IPTV disclaimer throughout the app
+- **Remote Admin Config System**: admin panel at `/admin`, controls: announcement scrolling bar, promotional banner (image/title/link/toggle), custom logo URL, theme color; config fetched from backend every 6 hours with AsyncStorage cache; home screen integrates all config values
 
 ## Architecture
 
@@ -65,9 +66,19 @@ app/
 
 context/
   IPTVContext.tsx        # All IPTV state, API calls, M3U parsing
+  RemoteConfigContext.tsx # Remote admin config: logo, banner, announcement, themeColor (6h refresh)
 
 constants/
   colors.ts              # Dark theme color palette
+
+server/
+  routes.ts              # Express routes + app-config API endpoints
+  app-config.json        # Persisted app config (auto-created)
+  templates/
+    admin.html           # Standalone admin panel HTML (at /admin on backend)
+
+app/
+  admin.tsx              # In-app admin dashboard (at /admin in Expo Router)
 ```
 
 ## Workflows

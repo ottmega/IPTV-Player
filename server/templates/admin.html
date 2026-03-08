@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTTMEGA Admin Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #05050F;
+    --surface: #0D0D1A;
+    --card: #131320;
+    --border: #1E1E30;
+    --accent: #4F8EF7;
+    --accent2: #7C3AED;
+    --text: #F0F0F8;
+    --text2: #8888A0;
+    --text3: #555568;
+    --success: #36D399;
+    --danger: #FF4D4F;
+    --warning: #F59E0B;
+    --radius: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* AUTH SCREEN */
+  #auth-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding: 20px; }
+  .auth-box { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 400px; text-align: center; }
+  .logo-wrap { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:24px; }
+  .logo-icon { width:52px; height:52px; border-radius:16px; background: linear-gradient(135deg,#4F8EF7,#7C3AED); display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .logo-title { font-size:22px; font-weight:800; letter-spacing:3px; }
+  .logo-sub { font-size:11px; color:var(--text2); letter-spacing:2px; }
+  .auth-box h2 { font-size:18px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  .auth-box p { font-size:13px; color:var(--text2); margin-bottom:24px; }
+  .input-group { text-align:left; margin-bottom:16px; }
+  .input-group label { font-size:12px; font-weight:600; color:var(--text2); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+  .input-group input, .input-group textarea, .input-group select {
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-size:14px; padding:12px 14px; outline:none; transition:border-color .2s;
+  }
+  .input-group input:focus, .input-group textarea:focus { border-color: var(--accent); }
+  .input-group textarea { resize:vertical; min-height:80px; font-family:inherit; }
+  .btn { width:100%; padding:14px; border-radius:12px; border:none; font-size:15px; font-weight:700; cursor:pointer; transition:opacity .2s, transform .1s; }
+  .btn:active { opacity:.85; transform:scale(.98); }
+  .btn-primary { background:linear-gradient(90deg,#4F8EF7,#7C3AED); color:#fff; }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-success { background:var(--success); color:#000; }
+  .btn-sm { width:auto; padding:8px 16px; font-size:13px; border-radius:8px; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text2); }
+  #auth-error { color:var(--danger); font-size:13px; margin-top:12px; display:none; }
+
+  /* DASHBOARD */
+  #dashboard { display:none; }
+  .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+  .topbar-left { display:flex; align-items:center; gap:12px; }
+  .topbar-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#4F8EF7,#7C3AED); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .topbar-title { font-size:15px; font-weight:800; letter-spacing:2px; }
+  .topbar-sub { font-size:10px; color:var(--text2); letter-spacing:1px; }
+  .topbar-right { display:flex; align-items:center; gap:10px; }
+  .badge { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+  .badge-success { background:rgba(54,211,153,.15); color:var(--success); border:1px solid rgba(54,211,153,.3); }
+  .badge-warn { background:rgba(245,158,11,.15); color:var(--warning); border:1px solid rgba(245,158,11,.3); }
+
+  .main { max-width: 1000px; margin: 0 auto; padding: 28px 24px 60px; }
+  .section-header { margin-bottom: 20px; }
+  .section-header h2 { font-size:13px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:640px) { .grid-2 { grid-template-columns:1fr; } .topbar { padding:0 16px; } .main { padding:20px 16px 60px; } }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:20px; }
+  .card-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+  .card-desc { font-size:12px; color:var(--text2); margin-bottom:18px; }
+  .card-title .icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .ic-blue { background:rgba(79,142,247,.15); }
+  .ic-purple { background:rgba(124,58,237,.15); }
+  .ic-green { background:rgba(54,211,153,.15); }
+  .ic-orange { background:rgba(245,158,11,.15); }
+
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .toggle-label { font-size:13px; font-weight:600; color:var(--text); }
+  .toggle-desc { font-size:11px; color:var(--text2); margin-top:2px; }
+  .toggle { position:relative; width:44px; height:24px; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.3s; }
+  .toggle-slider::before { content:''; position:absolute; width:18px; height:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+  .toggle input:checked + .toggle-slider { background:var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(20px); }
+
+  .color-row { display:flex; align-items:center; gap:10px; }
+  .color-preview { width:36px; height:36px; border-radius:8px; border:1px solid var(--border); flex-shrink:0; }
+  input[type="color"] { width:100%; height:40px; border:1px solid var(--border); border-radius:8px; background:var(--surface); cursor:pointer; padding:2px 4px; }
+
+  .save-bar { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:10; }
+  .save-bar-left { font-size:13px; color:var(--text2); }
+  #save-status { font-size:13px; font-weight:600; }
+  .save-actions { display:flex; gap:10px; }
+
+  .img-preview { width:100%; max-height:140px; border-radius:8px; object-fit:cover; margin-top:10px; background:var(--surface); border:1px solid var(--border); display:none; }
+  .img-preview.show { display:block; }
+  .logo-preview-wrap { display:flex; align-items:center; gap:14px; margin-top:10px; }
+  .logo-preview-img { width:52px; height:52px; border-radius:14px; object-fit:cover; background:var(--surface); border:1px solid var(--border); display:none; }
+  .logo-preview-img.show { display:block; }
+
+  .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+  .stat-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; margin-bottom:6px; }
+  .stat-value { font-size:20px; font-weight:800; color:var(--text); }
+  .stat-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+
+  .theme-samples { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .theme-swatch { width:36px; height:36px; border-radius:8px; cursor:pointer; border:2px solid transparent; transition:border-color .2s; }
+  .theme-swatch:hover, .theme-swatch.active { border-color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="logo-wrap">
+      <div class="logo-icon">▶</div>
+      <div>
+        <div class="logo-title">OTTMEGA</div>
+        <div class="logo-sub">Admin Dashboard</div>
+      </div>
+    </div>
+    <h2>Sign In Required</h2>
+    <p>Enter your admin key to access the dashboard controls.</p>
+    <div class="input-group">
+      <label>Admin Key</label>
+      <input type="password" id="admin-key-input" placeholder="Enter admin key..." />
+    </div>
+    <button class="btn btn-primary" onclick="doAuth()">Sign In</button>
+    <div id="auth-error">Invalid admin key. Please try again.</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">▶</div>
+      <div>
+        <div class="topbar-title">OTTMEGA</div>
+        <div class="topbar-sub">Admin Dashboard</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-success" id="live-badge">● Live</span>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label"><span class="stat-dot" style="background:#4F8EF7"></span>Announcement</div>
+        <div class="stat-value" id="stat-announcement">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><span class="stat-dot" style="background:#7C3AED"></span>Banner</div>
+        <div class="stat-value" id="stat-banner">Off</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><span class="stat-dot" style="background:#36D399"></span>Theme Color</div>
+        <div class="stat-value" id="stat-theme" style="display:flex;align-items:center;gap:8px">
+          <span id="stat-theme-dot" style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#4F8EF7"></span>
+          <span id="stat-theme-hex">#4F8EF7</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><span class="stat-dot" style="background:#F59E0B"></span>Custom Logo</div>
+        <div class="stat-value" id="stat-logo">None</div>
+      </div>
+    </div>
+
+    <!-- ANNOUNCEMENT -->
+    <div class="card">
+      <div class="card-title"><div class="icon ic-blue">📢</div> Announcement Bar</div>
+      <div class="card-desc">Displays a scrolling message bar at the top of the home screen. Leave empty to hide.</div>
+      <div class="input-group">
+        <label>Message Text</label>
+        <textarea id="f-announcement" placeholder="e.g. Maintenance tonight at 2 AM — New channels added!"></textarea>
+      </div>
+    </div>
+
+    <!-- BANNER -->
+    <div class="card">
+      <div class="card-title"><div class="icon ic-purple">🖼️</div> Promotional Banner</div>
+      <div class="card-desc">Shows a clickable image banner on the home screen below the stats.</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Show Banner</div>
+          <div class="toggle-desc">Toggle banner visibility on the home screen</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="f-showBanner" onchange="updateStats()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="grid-2">
+        <div class="input-group">
+          <label>Banner Image URL</label>
+          <input type="url" id="f-banner" placeholder="https://example.com/banner.jpg" oninput="previewBanner()" />
+          <img id="banner-preview" class="img-preview" alt="Banner preview" />
+        </div>
+        <div>
+          <div class="input-group">
+            <label>Banner Title</label>
+            <input type="text" id="f-bannerTitle" placeholder="Visit OTTMEGA Website" />
+          </div>
+          <div class="input-group">
+            <label>Banner Link URL</label>
+            <input type="url" id="f-bannerLink" placeholder="https://ottmega.in" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGO -->
+    <div class="card">
+      <div class="card-title"><div class="icon ic-green">🎨</div> Custom Logo</div>
+      <div class="card-desc">Override the default OTTMEGA play icon with a custom image. Use a square image for best results.</div>
+      <div class="input-group">
+        <label>Logo Image URL</label>
+        <input type="url" id="f-logo" placeholder="https://example.com/logo.png" oninput="previewLogo()" />
+      </div>
+      <div class="logo-preview-wrap">
+        <img id="logo-preview" class="logo-preview-img" alt="Logo preview" />
+        <span style="font-size:12px;color:var(--text2)">Logo preview (shown in app header)</span>
+      </div>
+    </div>
+
+    <!-- THEME -->
+    <div class="card">
+      <div class="card-title"><div class="icon ic-orange">🎨</div> Theme Color</div>
+      <div class="card-desc">Controls the accent color used for highlights, icons, and buttons throughout the app.</div>
+      <div class="color-row">
+        <div class="color-preview" id="color-preview-box" style="background:#4F8EF7"></div>
+        <div style="flex:1">
+          <input type="color" id="f-themeColor" value="#4F8EF7" oninput="updateColorPreview()" />
+        </div>
+        <input type="text" id="f-themeColorHex" style="width:90px" placeholder="#4F8EF7" oninput="syncColorHex()" />
+      </div>
+      <div class="theme-samples">
+        <div class="theme-swatch active" style="background:#4F8EF7" title="Blue" onclick="setColor('#4F8EF7')"></div>
+        <div class="theme-swatch" style="background:#7C3AED" title="Purple" onclick="setColor('#7C3AED')"></div>
+        <div class="theme-swatch" style="background:#10B981" title="Green" onclick="setColor('#10B981')"></div>
+        <div class="theme-swatch" style="background:#F59E0B" title="Amber" onclick="setColor('#F59E0B')"></div>
+        <div class="theme-swatch" style="background:#EF4444" title="Red" onclick="setColor('#EF4444')"></div>
+        <div class="theme-swatch" style="background:#EC4899" title="Pink" onclick="setColor('#EC4899')"></div>
+        <div class="theme-swatch" style="background:#06B6D4" title="Cyan" onclick="setColor('#06B6D4')"></div>
+        <div class="theme-swatch" style="background:#F97316" title="Orange" onclick="setColor('#F97316')"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SAVE BAR -->
+  <div class="save-bar">
+    <div class="save-bar-left">Changes are applied immediately after saving.</div>
+    <div class="save-actions">
+      <span id="save-status"></span>
+      <button class="btn btn-outline btn-sm" onclick="loadConfig()">Reset</button>
+      <button class="btn btn-primary btn-sm" onclick="saveConfig()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let adminKey = '';
+
+  async function doAuth() {
+    const key = document.getElementById('admin-key-input').value.trim();
+    if (!key) return;
+    try {
+      const res = await fetch('/api/admin/verify?key=' + encodeURIComponent(key));
+      const data = await res.json();
+      if (data.valid) {
+        adminKey = key;
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        await loadConfig();
+      } else {
+        document.getElementById('auth-error').style.display = 'block';
+      }
+    } catch (e) {
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  }
+
+  document.getElementById('admin-key-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doAuth();
+  });
+
+  function logout() {
+    adminKey = '';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('admin-key-input').value = '';
+  }
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/app-config');
+      const cfg = await res.json();
+      document.getElementById('f-announcement').value = cfg.announcement || '';
+      document.getElementById('f-showBanner').checked = !!cfg.showBanner;
+      document.getElementById('f-banner').value = cfg.banner || '';
+      document.getElementById('f-bannerTitle').value = cfg.bannerTitle || '';
+      document.getElementById('f-bannerLink').value = cfg.bannerLink || '';
+      document.getElementById('f-logo').value = cfg.logo || '';
+      const color = cfg.themeColor || '#4F8EF7';
+      document.getElementById('f-themeColor').value = color;
+      document.getElementById('f-themeColorHex').value = color;
+      document.getElementById('color-preview-box').style.background = color;
+      previewBanner();
+      previewLogo();
+      updateStats();
+    } catch (e) {
+      console.error('Failed to load config:', e);
+    }
+  }
+
+  async function saveConfig() {
+    const statusEl = document.getElementById('save-status');
+    statusEl.textContent = 'Saving...';
+    statusEl.style.color = 'var(--text2)';
+    try {
+      const body = {
+        adminKey,
+        announcement: document.getElementById('f-announcement').value,
+        showBanner: document.getElementById('f-showBanner').checked,
+        banner: document.getElementById('f-banner').value,
+        bannerTitle: document.getElementById('f-bannerTitle').value,
+        bannerLink: document.getElementById('f-bannerLink').value,
+        logo: document.getElementById('f-logo').value,
+        themeColor: document.getElementById('f-themeColorHex').value || document.getElementById('f-themeColor').value,
+      };
+      const res = await fetch('/api/app-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        statusEl.textContent = '✓ Saved successfully';
+        statusEl.style.color = 'var(--success)';
+        updateStats();
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } else {
+        statusEl.textContent = '✗ Save failed';
+        statusEl.style.color = 'var(--danger)';
+      }
+    } catch (e) {
+      statusEl.textContent = '✗ Network error';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+
+  function previewBanner() {
+    const url = document.getElementById('f-banner').value.trim();
+    const img = document.getElementById('banner-preview');
+    if (url) { img.src = url; img.className = 'img-preview show'; }
+    else { img.className = 'img-preview'; }
+  }
+
+  function previewLogo() {
+    const url = document.getElementById('f-logo').value.trim();
+    const img = document.getElementById('logo-preview');
+    if (url) { img.src = url; img.className = 'logo-preview-img show'; }
+    else { img.className = 'logo-preview-img'; }
+  }
+
+  function updateColorPreview() {
+    const color = document.getElementById('f-themeColor').value;
+    document.getElementById('color-preview-box').style.background = color;
+    document.getElementById('f-themeColorHex').value = color;
+    document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+  }
+
+  function syncColorHex() {
+    const hex = document.getElementById('f-themeColorHex').value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+      document.getElementById('f-themeColor').value = hex;
+      document.getElementById('color-preview-box').style.background = hex;
+    }
+  }
+
+  function setColor(hex) {
+    document.getElementById('f-themeColor').value = hex;
+    document.getElementById('f-themeColorHex').value = hex;
+    document.getElementById('color-preview-box').style.background = hex;
+    document.querySelectorAll('.theme-swatch').forEach(s => {
+      s.classList.toggle('active', s.style.background === hex || s.title.toLowerCase() === hex);
+    });
+  }
+
+  function updateStats() {
+    const ann = document.getElementById('f-announcement').value.trim();
+    const showBanner = document.getElementById('f-showBanner').checked;
+    const logo = document.getElementById('f-logo').value.trim();
+    const hex = document.getElementById('f-themeColorHex').value || document.getElementById('f-themeColor').value;
+
+    document.getElementById('stat-announcement').textContent = ann ? ann.slice(0, 20) + (ann.length > 20 ? '…' : '') : 'None';
+    document.getElementById('stat-banner').textContent = showBanner ? 'Active' : 'Off';
+    document.getElementById('stat-logo').textContent = logo ? 'Custom' : 'Default';
+    document.getElementById('stat-theme-hex').textContent = hex;
+    document.getElementById('stat-theme-dot').style.background = hex;
+
+    const badgeEl = document.getElementById('live-badge');
+    badgeEl.className = showBanner || ann ? 'badge badge-success' : 'badge badge-warn';
+    badgeEl.textContent = showBanner || ann ? '● Active' : '● Idle';
+  }
+
+  document.getElementById('f-announcement').addEventListener('input', updateStats);
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { IPTVProvider } from "@/context/IPTVContext";
+import { RemoteConfigProvider } from "@/context/RemoteConfigContext";
 import { StatusBar } from "expo-status-bar";
 
 SplashScreen.preventAutoHideAsync();
@@ -36,6 +37,7 @@ function RootLayoutNav() {
       <Stack.Screen name="terms" />
       <Stack.Screen name="movie/[id]" />
       <Stack.Screen name="series-detail/[id]" />
+      <Stack.Screen name="admin" />
     </Stack>
   );
 }
@@ -59,14 +61,16 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <IPTVProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <KeyboardProvider>
-              <StatusBar style="light" />
-              <RootLayoutNav />
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-        </IPTVProvider>
+        <RemoteConfigProvider>
+          <IPTVProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <StatusBar style="light" />
+                <RootLayoutNav />
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </IPTVProvider>
+        </RemoteConfigProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
