@@ -1,0 +1,36 @@
+{
+  "totalOpens": 3,
+  "uniqueDevices": 1,
+  "platforms": {
+    "web": 3
+  },
+  "versions": {
+    "1.0.0": 3
+  },
+  "recentEvents": [
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:30:55.360Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:30:42.521Z"
+    },
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "35.190.146.143",
+      "ts": "2026-03-08T11:30:38.868Z"
+    }
+  ],
+  "deviceIds": [
+    "35.190.146.143_web"
+  ]
+}

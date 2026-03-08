@@ -16,6 +16,7 @@ import { queryClient } from "@/lib/query-client";
 import { IPTVProvider } from "@/context/IPTVContext";
 import { RemoteConfigProvider } from "@/context/RemoteConfigContext";
 import { StatusBar } from "expo-status-bar";
+import ForceUpdateModal from "@/components/ForceUpdateModal";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -67,6 +68,7 @@ export default function RootLayout() {
               <KeyboardProvider>
                 <StatusBar style="light" />
                 <RootLayoutNav />
+                <ForceUpdateModal />
               </KeyboardProvider>
             </GestureHandlerRootView>
           </IPTVProvider>

@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useIPTV } from "@/context/IPTVContext";
-import { useRemoteConfig } from "@/context/RemoteConfigContext";
+import { useRemoteConfig, isBannerActive } from "@/context/RemoteConfigContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
@@ -131,7 +131,7 @@ export default function HomeScreen() {
           <StatPill icon="time" value={history.length} label="Watched" color="#F59E0B" />
         </View>
 
-        {config.showBanner && config.banner && (
+        {isBannerActive(config) && (
           <PromoBanner config={config} themeColor={themeColor} />
         )}
 

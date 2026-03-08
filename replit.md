@@ -30,7 +30,11 @@ OTTMEGA IPTV is a media player application that allows users to play IPTV stream
 - Auto-playlist refresh every 12 hours via background timer in IPTVContext
 - Privacy Policy and Terms of Service (Play Store compliant)
 - Legal IPTV disclaimer throughout the app
-- **Remote Admin Config System**: admin panel at `/admin`, controls: announcement scrolling bar, promotional banner (image/title/link/toggle), custom logo URL, theme color; config fetched from backend every 6 hours with AsyncStorage cache; home screen integrates all config values
+- **Remote Admin Config System**: admin panel at `/admin` (3 tabs: Config / Push / Analytics), controls: announcement scrolling bar, promotional banner with scheduling (start/end dates), custom logo URL, theme color, force-update prompt; config fetched every 6h with AsyncStorage cache
+- **Banner Scheduling**: admin sets bannerStartDate + bannerEndDate (YYYY-MM-DD); app only shows banner within that window
+- **Push Notifications**: `expo-notifications` token registered on startup and sent to backend; admin sends broadcast from `/admin` → Push tab → backend calls Expo Push API
+- **Analytics**: `POST /api/analytics/event` called on every app open; `/admin` → Analytics tab shows total opens, unique devices, platform breakdown, version stats, recent activity
+- **Force Update**: admin sets minAppVersion + updateUrl + toggle; app shows a full-screen modal blocking use if running below min version
 
 ## Architecture
 
