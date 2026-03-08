@@ -1,0 +1,154 @@
+Upgrade the OTTMEGA IPTV application with additional advanced IPTV features to match professional IPTV players such as XCIPTV.
+
+---
+
+CATCH-UP TV SYSTEM
+
+Implement catch-up TV functionality using EPG data.
+
+Features:
+
+Allow users to play past programs from the EPG guide
+Show "Watch Catch-Up" button when catch-up content is available
+Allow seeking within catch-up streams
+Display program title, start time, and description
+
+---
+
+CONTINUE WATCHING
+
+Create a continue watching system.
+
+Save playback progress for:
+
+Movies
+Series
+Catch-up programs
+
+Display a "Continue Watching" section on the Home Dashboard.
+
+---
+
+CHANNEL ZAPPING
+
+Implement instant channel switching.
+
+Features:
+
+Swipe up → next channel
+Swipe down → previous channel
+
+For Android TV remote:
+
+Up button → next channel
+Down button → previous channel
+
+Switch channels without exiting the player.
+
+---
+
+PICTURE-IN-PICTURE MODE
+
+Add Android picture-in-picture support.
+
+Features:
+
+Minimize player while continuing playback
+Allow navigation in the app while video continues in a floating window
+
+---
+
+CHANNEL PREVIEW
+
+Add channel preview functionality.
+
+When a user focuses or hovers on a channel card:
+
+Start a small muted preview stream inside the thumbnail.
+
+Stop preview when focus changes.
+
+---
+
+AUTO CHANNEL LOGO SYSTEM
+
+If playlist does not include channel logos:
+
+Attempt to automatically fetch logos using external sources.
+
+If unavailable:
+
+Display a default placeholder logo.
+
+---
+
+PLAYLIST AUTO REFRESH
+
+Implement automatic playlist refresh.
+
+Features:
+
+Auto refresh every 12 hours
+Manual refresh button in settings
+Background playlist updates
+
+---
+
+FAVORITES STORAGE
+
+Save user favorites locally.
+
+Favorites should include:
+
+Channels
+Movies
+Series
+
+Favorites must persist after app restart.
+
+---
+
+CRASH RECOVERY
+
+Implement playback recovery system.
+
+If the app crashes or closes:
+
+Restore last played channel or video
+Resume playback from last position
+
+---
+
+ANALYTICS SYSTEM
+
+Implement analytics tracking.
+
+Collect:
+
+Active users
+Device type
+Country
+IP address
+Watch duration
+
+Send analytics to admin dashboard API.
+
+---
+
+PERFORMANCE OPTIMIZATION
+
+Improve performance for large IPTV playlists.
+
+Implement:
+
+lazy loading
+channel caching
+optimized memory usage
+
+---
+
+FINAL BUILD
+
+Ensure the application compiles successfully.
+
+flutter build apk --release

@@ -19,11 +19,15 @@ OTTMEGA IPTV is a media player application that allows users to play IPTV stream
 - Series with seasons/episodes navigation
 - TV Guide / EPG grid view
 - Multi-Screen viewer (2 or 4 channels simultaneously)
-- Catch-Up for channels with TV archive
+- Catch-Up TV with 7-day program schedule, Watch/Replay buttons, Xtream timeshift URLs
 - Global Search (channels + movies + series)
-- Favorites management (channels, movies, series)
-- Video player with custom controls and progress tracking
-- Watch history with resume tracking
+- Favorites management (channels, movies, series) — persisted in AsyncStorage
+- Video player: subtitle/audio track selectors, aspect ratio cycling, speed control, next/prev channel buttons, info bar, swipe-to-zap gestures (swipe up/down)
+- Channel zapping: swipe up = next channel, swipe down = prev channel with animated banner
+- Watch history with resume tracking (continue watching on home screen)
+- Speed Test screen: real Cloudflare download test, ping, colour-coded IPTV rating
+- Settings: full account info, content stats, language picker (6 options), parental PIN (default 0000), speed test link, 12-hour auto-refresh
+- Auto-playlist refresh every 12 hours via background timer in IPTVContext
 - Privacy Policy and Terms of Service (Play Store compliant)
 - Legal IPTV disclaimer throughout the app
 

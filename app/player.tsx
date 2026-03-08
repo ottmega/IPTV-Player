@@ -10,6 +10,8 @@ import {
   Alert,
   useWindowDimensions,
   ScrollView,
+  PanResponder,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -53,10 +55,13 @@ export default function PlayerScreen() {
   const [currentUrl, setCurrentUrl] = useState(decodeURIComponent(params.url));
   const [currentTitle, setCurrentTitle] = useState(params.title || "");
   const [currentStreamId, setCurrentStreamId] = useState(params.streamId || "");
+  const [zapBanner, setZapBanner] = useState<string | null>(null);
 
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const zapTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const zapAnim = useRef(new Animated.Value(0)).current;
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
   const isLoading = !status?.isLoaded || reconnecting;
@@ -70,11 +75,34 @@ export default function PlayerScreen() {
 
   const currentChannelIdx = channels.findIndex((c) => c.streamId === currentStreamId);
 
+  const showZapBanner = (channelName: string) => {
+    setZapBanner(channelName);
+    Animated.sequence([
+      Animated.timing(zapAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1600),
+      Animated.timing(zapAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setZapBanner(null));
+  };
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dx) < Math.abs(g.dy),
+    onPanResponderRelease: (_, g) => {
+      if (isLive && channels.length > 1 && Math.abs(g.dy) > 50 && Math.abs(g.dx) < 80) {
+        if (g.dy < -50) switchChannel("next");
+        else switchChannel("prev");
+      } else if (Math.abs(g.dx) < 5 && Math.abs(g.dy) < 5) {
+        handleTap();
+      }
+    },
+  });
+
   useEffect(() => {
     resetControlsTimer();
     return () => {
       if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+      if (zapTimeout.current) clearTimeout(zapTimeout.current);
     };
   }, []);
 
@@ -147,6 +175,7 @@ export default function PlayerScreen() {
     setCurrentStreamId(nextChannel.streamId);
     setCurrentUrl(nextUrl);
     setReconnectCount(0);
+    showZapBanner(nextChannel.name);
     try {
       await videoRef.current?.loadAsync({ uri: nextUrl }, { shouldPlay: true });
     } catch {}
@@ -198,7 +227,7 @@ export default function PlayerScreen() {
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      <Pressable style={styles.videoWrapper} onPress={handleTap} testID="player-touch">
+      <View style={styles.videoWrapper} {...panResponder.panHandlers} testID="player-touch">
         <Video
           ref={videoRef}
           source={{ uri: currentUrl }}
@@ -358,9 +387,24 @@ export default function PlayerScreen() {
                 )}
               </View>
             )}
+
+            {isLive && (
+              <View style={[styles.swipeHint, { bottom: bottomPad + 42 }]}>
+                <Ionicons name="chevron-up" size={12} color="rgba(255,255,255,0.35)" />
+                <Text style={styles.swipeHintText}>Swipe to zap</Text>
+                <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.35)" />
+              </View>
+            )}
           </View>
         )}
-      </Pressable>
+
+        {zapBanner && (
+          <Animated.View style={[styles.zapBanner, { opacity: zapAnim }]}>
+            <Ionicons name="tv" size={16} color="#fff" />
+            <Text style={styles.zapText} numberOfLines={1}>{zapBanner}</Text>
+          </Animated.View>
+        )}
+      </View>
     </View>
   );
 }
@@ -456,6 +500,31 @@ const styles = StyleSheet.create({
   },
   infoTitle: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
   infoChip: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  zapBanner: {
+    position: "absolute",
+    top: "50%",
+    alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.82)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.accent + "70",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    maxWidth: 280,
+  },
+  zapText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold", flex: 1 },
+  swipeHint: {
+    position: "absolute",
+    right: 14,
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 3,
+    opacity: 0.6,
+  },
+  swipeHintText: { color: "rgba(255,255,255,0.35)", fontSize: 8, fontFamily: "Inter_400Regular" },
   errorContainer: { flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center", gap: 16 },
   errorText: { color: Colors.text, fontSize: 16, fontFamily: "Inter_500Medium" },
   errorBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.accent },

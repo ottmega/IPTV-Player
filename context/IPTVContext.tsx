@@ -159,6 +159,8 @@ const IPTVContext = createContext<IPTVContextValue | null>(null);
 
 const STORAGE_KEY = "ottmega_state";
 const SAVED_ACCOUNT_KEY = "ottmega_saved_account";
+const LAST_REFRESH_KEY = "ottmega_last_refresh";
+const AUTO_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 function parseM3U(text: string): { channels: Channel[]; categories: Category[] } {
   const lines = text.split("\n");
@@ -232,6 +234,23 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadSavedState();
   }, []);
+
+  useEffect(() => {
+    if (!state.initialized || !state.loginType || !state.credentials) return;
+    const checkAndRefresh = async () => {
+      try {
+        const lastRefreshRaw = await AsyncStorage.getItem(LAST_REFRESH_KEY);
+        const lastRefresh = lastRefreshRaw ? Number(lastRefreshRaw) : 0;
+        if (Date.now() - lastRefresh > AUTO_REFRESH_INTERVAL_MS) {
+          await AsyncStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
+          await login(state.loginType!, state.credentials!);
+        }
+      } catch {}
+    };
+    checkAndRefresh();
+    const interval = setInterval(checkAndRefresh, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [state.initialized, state.loginType, state.credentials]);
 
   const loadSavedState = async () => {
     try {
@@ -536,6 +555,7 @@ export function IPTVProvider({ children }: { children: ReactNode }) {
   const refreshContent = useCallback(async () => {
     if (!state.loginType || !state.credentials) return;
     await login(state.loginType, state.credentials);
+    await AsyncStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
   }, [state.loginType, state.credentials, login]);
 
   const logout = useCallback(() => {
