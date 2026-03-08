@@ -29,9 +29,9 @@ import * as Haptics from "expo-haptics";
 type Tab = "xtream" | "m3u" | "stalker";
 
 const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "xtream", label: "Xtream Codes", icon: "server-outline" },
-  { key: "m3u", label: "M3U Playlist", icon: "list-outline" },
-  { key: "stalker", label: "Stalker Portal", icon: "desktop-outline" },
+  { key: "xtream", label: "Xtream", icon: "server-outline" },
+  { key: "m3u", label: "M3U", icon: "list-outline" },
+  { key: "stalker", label: "Stalker", icon: "desktop-outline" },
 ];
 
 const FEATURES: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
@@ -40,6 +40,7 @@ const FEATURES: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
   { icon: "play-circle-outline", text: "Series" },
   { icon: "time-outline", text: "Catch-Up" },
   { icon: "grid-outline", text: "Multi-Screen" },
+  { icon: "speedometer-outline", text: "Speed Test" },
 ];
 
 export default function LoginScreen() {
@@ -119,53 +120,56 @@ export default function LoginScreen() {
     router.replace("/loading");
   };
 
-  const topPad = Platform.OS === "web" ? 24 : insets.top + 8;
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 16;
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 8;
 
   if (isPortrait) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#06060F", "#0D0D20", "#06060F"]} style={StyleSheet.absoluteFill} />
-        <View style={styles.decorCircle1} />
-        <View style={styles.decorCircle2} />
+        <LinearGradient
+          colors={["#05051A", "#0A0520", "#06061A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.4, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
 
         <ScrollView
           contentContainerStyle={[
             styles.portraitScroll,
-            { paddingTop: topPad, paddingBottom: bottomPad },
+            { paddingTop: topPad + 32, paddingBottom: bottomPad + 16 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.portraitLogo}>
+          <View style={styles.logoSection}>
             <LinearGradient
               colors={[Colors.gradient1, Colors.gradient2]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.portraitLogoBox}
+              style={styles.logoIconBox}
             >
-              <Ionicons name="play" size={28} color="#fff" />
+              <Ionicons name="play" size={30} color="#fff" />
             </LinearGradient>
-            <View>
-              <Text style={styles.portraitAppName}>OTTMEGA</Text>
-              <Text style={styles.portraitAppSub}>IPTV Player</Text>
-            </View>
+            <Text style={styles.logoTitle}>OTTMEGA</Text>
+            <Text style={styles.logoSub}>IPTV Player</Text>
           </View>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featureBadgesRow}
+            contentContainerStyle={styles.featureRow}
           >
             {FEATURES.map((f) => (
-              <View key={f.text} style={styles.featureBadge}>
-                <Ionicons name={f.icon} size={13} color={Colors.accent} />
-                <Text style={styles.featureBadgeText}>{f.text}</Text>
+              <View key={f.text} style={styles.featureCard}>
+                <View style={styles.featureCardIcon}>
+                  <Ionicons name={f.icon} size={22} color={Colors.accent} />
+                </View>
+                <Text style={styles.featureCardLabel}>{f.text}</Text>
               </View>
             ))}
           </ScrollView>
 
-          <View style={[styles.portraitCard, { maxWidth: 420, width: "100%", alignSelf: "center" }]}>
+          <View style={styles.card}>
             <Text style={styles.cardTitle}>Connect Your Account</Text>
 
             {savedAccount && (
@@ -175,26 +179,37 @@ export default function LoginScreen() {
               </View>
             )}
 
-            <View style={styles.tabsRow}>
-              {TABS.map((tab) => (
-                <Pressable
-                  key={tab.key}
-                  style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-                  onPress={() => { setActiveTab(tab.key); Haptics.selectionAsync(); }}
-                >
-                  <Ionicons
-                    name={tab.icon}
-                    size={13}
-                    color={activeTab === tab.key ? Colors.accent : Colors.textMuted}
-                  />
-                  <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
-                    {tab.key === "xtream" ? "Xtream" : tab.key === "m3u" ? "M3U" : "Stalker"}
-                  </Text>
-                </Pressable>
-              ))}
+            <View style={styles.tabsContainer}>
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    style={[styles.tabPill, isActive && styles.tabPillActive]}
+                    onPress={() => { setActiveTab(tab.key); Haptics.selectionAsync(); }}
+                  >
+                    {isActive ? (
+                      <LinearGradient
+                        colors={[Colors.gradient1, Colors.gradient2]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.tabPillGradient}
+                      >
+                        <Ionicons name={tab.icon} size={13} color="#fff" />
+                        <Text style={[styles.tabPillLabel, styles.tabPillLabelActive]}>{tab.label}</Text>
+                      </LinearGradient>
+                    ) : (
+                      <View style={styles.tabPillInner}>
+                        <Ionicons name={tab.icon} size={13} color={Colors.textMuted} />
+                        <Text style={styles.tabPillLabel}>{tab.label}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
 
-            <View style={styles.form}>
+            <View style={styles.formFields}>
               {activeTab === "xtream" && (
                 <>
                   <InputField label="Server URL" placeholder="http://server.example.com:8080" value={xtreamServer} onChangeText={setXtreamServer} icon="globe-outline" keyboardType="url" />
@@ -211,31 +226,31 @@ export default function LoginScreen() {
                   <InputField label="MAC Address" placeholder="00:1A:79:XX:XX:XX" value={stalkerMac} onChangeText={setStalkerMac} icon="hardware-chip-outline" autoCapitalize="characters" />
                 </>
               )}
-
-              <Pressable
-                style={({ pressed }) => [styles.loginBtn, pressed && styles.loginBtnPressed]}
-                onPress={handleConnect}
-                disabled={loading}
-              >
-                <LinearGradient
-                  colors={[Colors.gradient1, Colors.gradient2]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.loginBtnGradient}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="play-circle" size={20} color="#fff" />
-                      <Text style={styles.loginBtnText}>Connect</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
             </View>
 
-            <View style={styles.footer}>
+            <Pressable
+              style={({ pressed }) => [styles.connectBtn, pressed && styles.connectBtnPressed]}
+              onPress={handleConnect}
+              disabled={loading}
+            >
+              <LinearGradient
+                colors={[Colors.gradient1, Colors.gradient2]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.connectBtnGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="play-circle" size={20} color="#fff" />
+                    <Text style={styles.connectBtnText}>Connect</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </Pressable>
+
+            <View style={styles.cardFooter}>
               <Pressable onPress={() => router.push("/privacy")}>
                 <Text style={styles.footerLink}>Privacy Policy</Text>
               </Pressable>
@@ -246,10 +261,10 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          <View style={styles.portraitDisclaimer}>
+          <View style={styles.disclaimer}>
             <Ionicons name="shield-checkmark-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.portraitDisclaimerText}>
-              This app does not provide any TV channels. Connect your own playlist.
+            <Text style={styles.disclaimerText}>
+              This app does not provide any TV channels or content. You must supply your own playlist.
             </Text>
           </View>
         </ScrollView>
@@ -262,52 +277,55 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#06060F", "#0D0D20", "#06060F"]} style={StyleSheet.absoluteFill} />
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
+      <LinearGradient
+        colors={["#05051A", "#0A0520", "#06061A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.4, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       <ScrollView
         contentContainerStyle={[
-          styles.scroll,
+          styles.landscapeScroll,
           { paddingTop: topPad, paddingLeft: leftPad, paddingRight: rightPad, paddingBottom: insets.bottom + 24 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.layout}>
+        <View style={styles.landscapeLayout}>
           <View style={styles.leftPanel}>
             <LinearGradient
               colors={[Colors.gradient1, Colors.gradient2]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.logoBox}
+              style={styles.landscapeLogoBox}
             >
               <Ionicons name="play" size={36} color="#fff" />
             </LinearGradient>
-            <Text style={styles.appName}>OTTMEGA</Text>
-            <Text style={styles.appSub}>IPTV Player</Text>
+            <Text style={styles.landscapeAppName}>OTTMEGA</Text>
+            <Text style={styles.landscapeAppSub}>IPTV Player</Text>
 
-            <View style={styles.featureList}>
+            <View style={styles.landscapeFeatureList}>
               {FEATURES.map((f) => (
-                <View key={f.text} style={styles.featureItem}>
-                  <View style={styles.featureIcon}>
+                <View key={f.text} style={styles.landscapeFeatureItem}>
+                  <View style={styles.landscapeFeatureIcon}>
                     <Ionicons name={f.icon} size={14} color={Colors.accent} />
                   </View>
-                  <Text style={styles.featureText}>{f.text}</Text>
+                  <Text style={styles.landscapeFeatureText}>{f.text}</Text>
                 </View>
               ))}
             </View>
 
-            <View style={styles.disclaimer}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={Colors.textMuted} />
-              <Text style={styles.disclaimerText}>
+            <View style={styles.landscapeDisclaimer}>
+              <Ionicons name="shield-checkmark-outline" size={12} color={Colors.textMuted} />
+              <Text style={styles.landscapeDisclaimerText}>
                 This app does not provide any TV channels. Connect your own playlist.
               </Text>
             </View>
           </View>
 
           <View style={styles.rightPanel}>
-            <View style={styles.glassCard}>
+            <View style={styles.landscapeCard}>
               <Text style={styles.cardTitle}>Connect Your Account</Text>
               {savedAccount && (
                 <View style={styles.savedBadge}>
@@ -316,20 +334,37 @@ export default function LoginScreen() {
                 </View>
               )}
 
-              <View style={styles.tabsRow}>
-                {TABS.map((tab) => (
-                  <Pressable
-                    key={tab.key}
-                    style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-                    onPress={() => { setActiveTab(tab.key); Haptics.selectionAsync(); }}
-                  >
-                    <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? Colors.accent : Colors.textMuted} />
-                    <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
-                  </Pressable>
-                ))}
+              <View style={styles.tabsContainer}>
+                {TABS.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <Pressable
+                      key={tab.key}
+                      style={[styles.tabPill, isActive && styles.tabPillActive]}
+                      onPress={() => { setActiveTab(tab.key); Haptics.selectionAsync(); }}
+                    >
+                      {isActive ? (
+                        <LinearGradient
+                          colors={[Colors.gradient1, Colors.gradient2]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.tabPillGradient}
+                        >
+                          <Ionicons name={tab.icon} size={13} color="#fff" />
+                          <Text style={[styles.tabPillLabel, styles.tabPillLabelActive]}>{tab.label}</Text>
+                        </LinearGradient>
+                      ) : (
+                        <View style={styles.tabPillInner}>
+                          <Ionicons name={tab.icon} size={13} color={Colors.textMuted} />
+                          <Text style={styles.tabPillLabel}>{tab.label}</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
 
-              <View style={styles.form}>
+              <View style={styles.formFields}>
                 {activeTab === "xtream" && (
                   <>
                     <InputField label="Server URL" placeholder="http://server.example.com:8080" value={xtreamServer} onChangeText={setXtreamServer} icon="globe-outline" keyboardType="url" />
@@ -346,31 +381,31 @@ export default function LoginScreen() {
                     <InputField label="MAC Address" placeholder="00:1A:79:XX:XX:XX" value={stalkerMac} onChangeText={setStalkerMac} icon="hardware-chip-outline" autoCapitalize="characters" />
                   </>
                 )}
-
-                <Pressable
-                  style={({ pressed }) => [styles.loginBtn, pressed && styles.loginBtnPressed]}
-                  onPress={handleConnect}
-                  disabled={loading}
-                >
-                  <LinearGradient
-                    colors={[Colors.gradient1, Colors.gradient2]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.loginBtnGradient}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="play-circle" size={20} color="#fff" />
-                        <Text style={styles.loginBtnText}>Connect</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </Pressable>
               </View>
 
-              <View style={styles.footer}>
+              <Pressable
+                style={({ pressed }) => [styles.connectBtn, pressed && styles.connectBtnPressed]}
+                onPress={handleConnect}
+                disabled={loading}
+              >
+                <LinearGradient
+                  colors={[Colors.gradient1, Colors.gradient2]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.connectBtnGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="play-circle" size={20} color="#fff" />
+                      <Text style={styles.connectBtnText}>Connect</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              <View style={styles.cardFooter}>
                 <Pressable onPress={() => router.push("/privacy")}>
                   <Text style={styles.footerLink}>Privacy Policy</Text>
                 </Pressable>
@@ -400,7 +435,18 @@ interface InputFieldProps {
   autoCapitalize?: "none" | "characters" | "words" | "sentences";
 }
 
-function InputField({ label, placeholder, value, onChangeText, icon, secureTextEntry, rightIcon, onRightIconPress, keyboardType = "default", autoCapitalize = "none" }: InputFieldProps) {
+function InputField({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  icon,
+  secureTextEntry,
+  rightIcon,
+  onRightIconPress,
+  keyboardType = "default",
+  autoCapitalize = "none",
+}: InputFieldProps) {
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -428,56 +474,330 @@ function InputField({ label, placeholder, value, onChangeText, icon, secureTextE
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#06060F" },
-  decorCircle1: { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: Colors.gradient1 + "18", top: -80, left: -60 },
-  decorCircle2: { position: "absolute", width: 250, height: 250, borderRadius: 125, backgroundColor: Colors.gradient2 + "14", bottom: -60, right: -40 },
+  container: {
+    flex: 1,
+    backgroundColor: "#05051A",
+  },
 
-  portraitScroll: { flexGrow: 1, paddingHorizontal: 20, gap: 16 },
-  portraitLogo: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 8 },
-  portraitLogoBox: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  portraitAppName: { fontSize: 26, fontFamily: "Inter_700Bold", color: Colors.text, letterSpacing: 4 },
-  portraitAppSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textSecondary, letterSpacing: 3 },
-  featureBadgesRow: { gap: 8, paddingVertical: 4 },
-  featureBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.accentSoft, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.accent + "30" },
-  featureBadgeText: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.accent },
-  portraitCard: { backgroundColor: Colors.surface + "CC", borderRadius: 20, padding: 22, borderWidth: 1, borderColor: Colors.cardBorder },
-  portraitDisclaimer: { flexDirection: "row", alignItems: "flex-start", gap: 7, paddingHorizontal: 4 },
-  portraitDisclaimerText: { flex: 1, fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 15 },
+  portraitScroll: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    gap: 24,
+    alignItems: "center",
+  },
 
-  scroll: { flexGrow: 1, justifyContent: "center" },
-  layout: { flexDirection: "row", gap: 32, alignItems: "center" },
-  leftPanel: { flex: 1, gap: 16, alignItems: "flex-start", justifyContent: "center", paddingRight: 16 },
-  logoBox: { width: 80, height: 80, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  appName: { fontSize: 32, fontFamily: "Inter_700Bold", color: Colors.text, letterSpacing: 5 },
-  appSub: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary, letterSpacing: 3, marginTop: -8 },
-  featureList: { gap: 10, marginTop: 8 },
-  featureItem: { flexDirection: "row", alignItems: "center", gap: 10 },
-  featureIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.accentSoft, alignItems: "center", justifyContent: "center" },
-  featureText: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
-  disclaimer: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8, maxWidth: 260 },
-  disclaimerText: { flex: 1, fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 16 },
-  rightPanel: { flex: 1, maxWidth: 420 },
-  glassCard: { backgroundColor: Colors.surface + "CC", borderRadius: 20, padding: 28, borderWidth: 1, borderColor: Colors.cardBorder },
-  cardTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.text, marginBottom: 16 },
-  savedBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.success + "18", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 16, alignSelf: "flex-start", borderWidth: 1, borderColor: Colors.success + "40" },
-  savedText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.success },
-  tabsRow: { flexDirection: "row", backgroundColor: Colors.card, borderRadius: 12, padding: 4, marginBottom: 20, gap: 2 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 9, borderRadius: 9, gap: 5 },
-  tabBtnActive: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.cardBorder },
-  tabLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted },
-  tabLabelActive: { color: Colors.accent },
-  form: { gap: 14 },
-  inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
-  inputRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.cardBorder, paddingHorizontal: 12, height: 46 },
-  inputIcon: { marginRight: 8 },
-  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.text },
-  inputRightBtn: { padding: 6 },
-  loginBtn: { marginTop: 6, borderRadius: 12, overflow: "hidden" },
-  loginBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  loginBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, height: 52, borderRadius: 12 },
-  loginBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20, gap: 8 },
-  footerLink: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, textDecorationLine: "underline" },
-  footerDot: { color: Colors.textMuted, fontSize: 11 },
+  logoSection: {
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    marginBottom: 0,
+  },
+  logoIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  logoTitle: {
+    fontSize: 30,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    letterSpacing: 6,
+  },
+  logoSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    letterSpacing: 4,
+    textTransform: "uppercase",
+  },
+
+  featureRow: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  featureCard: {
+    width: 100,
+    height: 70,
+    borderRadius: 16,
+    backgroundColor: "rgba(20,20,40,0.85)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  featureCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureCardLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "rgba(20,20,35,0.85)",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+    gap: 0,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    marginBottom: 14,
+  },
+  savedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.success + "18",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 14,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: Colors.success + "40",
+  },
+  savedText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.success,
+  },
+
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: "rgba(10,10,25,0.7)",
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 18,
+    gap: 2,
+    height: 44,
+  },
+  tabPill: {
+    flex: 1,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  tabPillActive: {
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  tabPillGradient: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+  },
+  tabPillInner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 6,
+  },
+  tabPillLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textMuted,
+  },
+  tabPillLabelActive: {
+    color: "#fff",
+    fontFamily: "Inter_600SemiBold",
+  },
+
+  formFields: {
+    gap: 14,
+    marginBottom: 18,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(10,10,28,0.8)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    paddingHorizontal: 14,
+    height: 52,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.text,
+  },
+  inputRightBtn: {
+    padding: 6,
+  },
+
+  connectBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 18,
+  },
+  connectBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  connectBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 54,
+    borderRadius: 14,
+  },
+  connectBtnText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+  },
+
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  footerLink: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
+  footerDot: {
+    color: Colors.textMuted,
+    fontSize: 11,
+  },
+
+  disclaimer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    maxWidth: 360,
+    paddingHorizontal: 4,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    lineHeight: 15,
+    textAlign: "center",
+  },
+
+  landscapeScroll: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  landscapeLayout: {
+    flexDirection: "row",
+    gap: 32,
+    alignItems: "center",
+  },
+  leftPanel: {
+    flex: 1,
+    gap: 16,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingRight: 16,
+  },
+  landscapeLogoBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  landscapeAppName: {
+    fontSize: 32,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    letterSpacing: 5,
+  },
+  landscapeAppSub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+    marginTop: -8,
+    textTransform: "uppercase",
+  },
+  landscapeFeatureList: {
+    gap: 10,
+    marginTop: 8,
+  },
+  landscapeFeatureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  landscapeFeatureIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: Colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  landscapeFeatureText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+  },
+  landscapeDisclaimer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginTop: 8,
+    maxWidth: 260,
+  },
+  landscapeDisclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    lineHeight: 16,
+  },
+  rightPanel: {
+    flex: 1,
+    maxWidth: 420,
+  },
+  landscapeCard: {
+    backgroundColor: "rgba(20,20,35,0.85)",
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
 });

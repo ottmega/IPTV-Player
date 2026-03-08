@@ -1,0 +1,195 @@
+Redesign the OTTMEGA IPTV login screen to make it clean, responsive, and professional for mobile devices.
+
+The current layout has oversized feature boxes, uneven spacing, and poor responsiveness.
+
+---
+
+LOGIN SCREEN LAYOUT STRUCTURE
+
+Create the following vertical layout:
+
+SafeAreaView
+ScrollView
+Main Container
+
+Inside container:
+
+Logo Section
+Feature Shortcut Row
+Login Card
+Legal Footer
+
+---
+
+LOGO SECTION
+
+Display:
+
+App icon
+OTTMEGA title
+"IPTV Player" subtitle
+
+Center aligned.
+
+Spacing:
+
+marginTop: 40
+marginBottom: 24
+
+---
+
+FEATURE SHORTCUT ROW
+
+The Live TV / Movies / Series / Catch-Up boxes must be redesigned.
+
+Instead of tall cards, use compact rounded buttons.
+
+Layout:
+
+Horizontal scroll row.
+
+Each item:
+
+icon
+label
+
+Size:
+
+width: 100
+height: 70
+borderRadius: 16
+
+Spacing:
+
+gap: 12
+
+This prevents stretched cards on mobile screens.
+
+---
+
+LOGIN CARD
+
+Create a centered login card.
+
+maxWidth: 420
+width: 100%
+
+Card styling:
+
+borderRadius: 20
+padding: 20
+backgroundColor: rgba(20,20,35,0.85)
+border: 1px solid rgba(255,255,255,0.05)
+
+Shadow for elevation.
+
+---
+
+LOGIN METHOD TABS
+
+Tabs:
+
+Xtream
+M3U
+Stalker
+
+Use pill-style segmented control.
+
+height: 44
+borderRadius: 12
+
+Active tab must highlight with gradient.
+
+---
+
+FORM INPUTS
+
+Input fields must have consistent spacing.
+
+Field structure:
+
+label
+input box
+
+Input style:
+
+height: 52
+borderRadius: 12
+paddingHorizontal: 14
+
+Spacing between fields:
+
+marginBottom: 14
+
+---
+
+CONNECT BUTTON
+
+Create a full width gradient button.
+
+height: 54
+borderRadius: 14
+
+Gradient:
+
+blue → purple
+
+Add play icon before text.
+
+---
+
+BACKGROUND DESIGN
+
+Remove oversized circular background shapes.
+
+Replace with a subtle gradient background.
+
+Example:
+
+dark blue → dark purple gradient.
+
+---
+
+FOOTER SECTION
+
+Below login card add:
+
+Privacy Policy
+Terms of Service
+Disclaimer text.
+
+Text must be centered and smaller.
+
+---
+
+RESPONSIVE BEHAVIOR
+
+Ensure layout works for:
+
+Small phones
+Large phones
+Tablets
+
+Feature row must scroll horizontally instead of wrapping.
+
+Login card must stay centered.
+
+---
+
+TESTING
+
+Verify:
+
+No stretched cards
+Even spacing
+Clean centered layout
+No overflow
+Responsive across screen sizes
+
+---
+
+BUILD
+
+Ensure app compiles successfully.
+
+expo start
