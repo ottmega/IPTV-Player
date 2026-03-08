@@ -1,0 +1,134 @@
+Fix the movie and series detail page layout in the OTTMEGA IPTV React Native / Expo application.
+
+Currently the poster or wallpaper image expands to cover the entire screen and overlaps UI elements.
+
+Implement a proper responsive layout.
+
+---
+
+BACKGROUND IMAGE FIX
+
+The movie backdrop image must NOT cover the entire screen as a fixed absolute element.
+
+Use a header-style background image instead.
+
+Example behavior:
+
+Top section = backdrop image
+Bottom section = scrollable content
+
+Apply a dark gradient overlay on the backdrop for readability.
+
+---
+
+SAFE CONTAINER STRUCTURE
+
+Use a vertical layout structure:
+
+SafeAreaView
+ScrollView
+Content container
+
+This prevents overlapping and ensures correct scrolling.
+
+---
+
+POSTER + INFO LAYOUT
+
+Under the backdrop image create a content section containing:
+
+Movie poster on the left
+Movie information on the right
+
+Information should include:
+
+Title
+Release year
+Genre
+Rating
+Description
+Play button
+
+---
+
+RESPONSIVE DESIGN
+
+Ensure layout adapts based on screen width.
+
+Mobile phones:
+
+Poster on top
+Details below
+
+Tablets and landscape screens:
+
+Poster left
+Details right
+
+---
+
+IMAGE FITTING
+
+Fix image scaling:
+
+Poster → resizeMode="cover"
+Backdrop → resizeMode="cover" with max height
+
+Backdrop height should be around 35–40% of screen height.
+
+---
+
+PREVENT OVERFLOW
+
+Ensure:
+
+No text overflow
+No element overlap
+Scrollable content
+
+Use flexbox layout rules correctly.
+
+---
+
+SERIES PAGE FIX
+
+Apply the same layout structure to the Series detail page.
+
+Series page must show:
+
+Series poster
+Series title
+Seasons list
+Episodes list
+
+Episodes must appear inside a scrollable list.
+
+---
+
+UI IMPROVEMENTS
+
+Add gradient overlay to backdrop image for better text contrast.
+
+Add spacing between sections.
+
+Ensure play button remains visible and clickable.
+
+---
+
+TESTING
+
+Verify the following:
+
+Movie detail page does not overlap UI
+Backdrop image does not cover entire screen
+Content scroll works properly
+Layout works on small phones and tablets
+
+---
+
+BUILD
+
+Ensure the application compiles successfully.
+
+expo start
+flutter build apk --release

@@ -7,6 +7,7 @@ import {
   Image,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,19 +19,24 @@ import * as Haptics from "expo-haptics";
 
 export default function MovieDetailScreen() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { movies, toggleFavorite, isFavorite, getStreamUrl, addToHistory } = useIPTV();
 
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const sidePad = Platform.OS === "web" ? 32 : Math.max(insets.left, 16);
+
+  const backdropHeight = Math.min(Math.max(height * 0.38, 140), 260);
+  const isWide = width >= 600;
 
   const movie = movies.find((m) => m.streamId === id);
 
   if (!movie) {
     return (
-      <View style={[styles.container, { paddingTop: topPadding }]}>
-        <Pressable style={[styles.backBtn, { margin: 20 }]} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
+      <View style={[styles.container, { paddingTop: topPad }]}>
+        <Pressable style={[styles.floatBtn, { margin: 20 }]} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
         <View style={styles.notFound}>
           <Ionicons name="alert-circle-outline" size={52} color={Colors.textMuted} />
@@ -53,91 +59,115 @@ export default function MovieDetailScreen() {
       timestamp: Date.now(),
       url,
     });
-    router.push({ pathname: "/player", params: { url, title: movie.name, logo: movie.streamIcon, streamId: movie.streamId } });
+    router.push({
+      pathname: "/player",
+      params: { url, title: movie.name, logo: movie.streamIcon, streamId: movie.streamId },
+    });
   };
 
   return (
-    <View style={[styles.container]}>
-      <View style={styles.heroContainer}>
-        {movie.streamIcon ? (
-          <Image source={{ uri: movie.streamIcon }} style={styles.hero} resizeMode="cover" />
-        ) : (
-          <View style={[styles.hero, styles.heroPlaceholder]}>
-            <Ionicons name="film" size={64} color={Colors.textMuted} />
-          </View>
-        )}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.6)", Colors.bg]}
-          style={styles.heroGradient}
-        />
-        <Pressable
-          style={[styles.backBtn, { top: topPadding + 8, left: 16, position: "absolute" }]}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#fff" />
-        </Pressable>
-        <Pressable
-          style={[styles.favBtn, { top: topPadding + 8, right: 16, position: "absolute" }]}
-          onPress={() => { toggleFavorite("movies", movie.streamId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-        >
-          <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? Colors.danger : "#fff"} />
-        </Pressable>
-      </View>
-
+    <View style={styles.container}>
       <ScrollView
-        style={styles.content}
-        contentContainerStyle={{ paddingBottom: bottomPadding + 32 }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomPad + 24 }}
+        bounces={false}
       >
-        <Text style={styles.movieTitle}>{movie.name}</Text>
-
-        <View style={styles.metaRow}>
-          {movie.year && (
-            <View style={styles.metaBadge}>
-              <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-              <Text style={styles.metaText}>{movie.year}</Text>
+        <View style={{ height: backdropHeight }}>
+          {movie.streamIcon ? (
+            <Image
+              source={{ uri: movie.streamIcon }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, styles.backdropPlaceholder]}>
+              <Ionicons name="film" size={56} color={Colors.textMuted} />
             </View>
           )}
-          {movie.duration && (
-            <View style={styles.metaBadge}>
-              <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
-              <Text style={styles.metaText}>{movie.duration}</Text>
-            </View>
-          )}
-          {movie.rating && (
-            <View style={styles.metaBadge}>
-              <Ionicons name="star" size={12} color={Colors.warning} />
-              <Text style={styles.metaText}>{parseFloat(movie.rating).toFixed(1)}</Text>
-            </View>
-          )}
-          {movie.genre && (
-            <View style={styles.metaBadge}>
-              <Text style={styles.metaText}>{movie.genre}</Text>
-            </View>
-          )}
+          <LinearGradient
+            colors={["rgba(7,7,20,0.15)", "rgba(7,7,20,0.55)", Colors.bg]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Pressable
+            style={[styles.floatBtn, { position: "absolute", top: topPad + 8, left: sidePad }]}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+          </Pressable>
+          <Pressable
+            style={[styles.floatBtn, { position: "absolute", top: topPad + 8, right: sidePad }]}
+            onPress={() => {
+              toggleFavorite("movies", movie.streamId);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name={fav ? "heart" : "heart-outline"} size={20} color={fav ? Colors.danger : "#fff"} />
+          </Pressable>
         </View>
 
-        {movie.plot && (
-          <View style={styles.plotSection}>
-            <Text style={styles.sectionLabel}>Synopsis</Text>
-            <Text style={styles.plotText}>{movie.plot}</Text>
+        <View style={[styles.infoSection, { paddingHorizontal: sidePad, flexDirection: isWide ? "row" : "column" }]}>
+          <View style={[styles.posterWrap, isWide ? styles.posterWrapLandscape : styles.posterWrapPortrait]}>
+            {movie.streamIcon ? (
+              <Image source={{ uri: movie.streamIcon }} style={styles.poster} resizeMode="cover" />
+            ) : (
+              <View style={[styles.poster, styles.posterPlaceholder]}>
+                <Ionicons name="film" size={32} color={Colors.textMuted} />
+              </View>
+            )}
           </View>
-        )}
 
-        <Pressable
-          style={({ pressed }) => [styles.playBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-          onPress={handlePlay}
-        >
-          <LinearGradient
-            colors={[Colors.gradient1, Colors.gradient2]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.playBtnGradient}
-          >
-            <Ionicons name="play" size={22} color="#fff" />
-            <Text style={styles.playBtnText}>Play Now</Text>
-          </LinearGradient>
-        </Pressable>
+          <View style={[styles.details, isWide && { flex: 1, paddingLeft: 20 }]}>
+            <Text style={styles.title} numberOfLines={3}>{movie.name}</Text>
+
+            <View style={styles.metaRow}>
+              {movie.year && (
+                <View style={styles.metaBadge}>
+                  <Ionicons name="calendar-outline" size={11} color={Colors.textMuted} />
+                  <Text style={styles.metaText}>{movie.year}</Text>
+                </View>
+              )}
+              {movie.duration && (
+                <View style={styles.metaBadge}>
+                  <Ionicons name="time-outline" size={11} color={Colors.textMuted} />
+                  <Text style={styles.metaText}>{movie.duration}</Text>
+                </View>
+              )}
+              {movie.rating && (
+                <View style={styles.metaBadge}>
+                  <Ionicons name="star" size={11} color={Colors.warning} />
+                  <Text style={styles.metaText}>{parseFloat(movie.rating).toFixed(1)}</Text>
+                </View>
+              )}
+              {movie.genre && (
+                <View style={styles.metaBadge}>
+                  <Text style={styles.metaText}>{movie.genre}</Text>
+                </View>
+              )}
+            </View>
+
+            {movie.plot && (
+              <View style={styles.plotSection}>
+                <Text style={styles.sectionLabel}>Synopsis</Text>
+                <Text style={styles.plotText}>{movie.plot}</Text>
+              </View>
+            )}
+
+            <Pressable
+              style={({ pressed }) => [styles.playBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+              onPress={handlePlay}
+            >
+              <LinearGradient
+                colors={[Colors.gradient1, Colors.gradient2]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.playBtnGradient}
+              >
+                <Ionicons name="play" size={20} color="#fff" />
+                <Text style={styles.playBtnText}>Play Now</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -148,59 +178,69 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.bg,
   },
-  heroContainer: {
-    height: 320,
-    position: "relative",
-  },
-  hero: {
-    width: "100%",
-    height: "100%",
-  },
-  heroPlaceholder: {
+  backdropPlaceholder: {
     backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  heroGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+  floatBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
-  favBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+  infoSection: {
+    gap: 16,
+    paddingTop: 20,
+    alignItems: "flex-start",
+  },
+  posterWrap: {
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    marginTop: -40,
+  },
+  posterWrapLandscape: {
+    width: 120,
+    height: 170,
+    flexShrink: 0,
+  },
+  posterWrapPortrait: {
+    width: 100,
+    height: 145,
+    alignSelf: "flex-start",
+  },
+  poster: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  posterPlaceholder: {
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  content: {
+  details: {
+    gap: 12,
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    minWidth: 0,
   },
-  movieTitle: {
-    fontSize: 26,
+  title: {
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
     color: Colors.text,
-    marginBottom: 12,
-    lineHeight: 32,
+    lineHeight: 28,
   },
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
+    gap: 6,
   },
   metaBadge: {
     flexDirection: "row",
@@ -208,46 +248,47 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: Colors.surface,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_500Medium",
     color: Colors.textSecondary,
   },
   plotSection: {
-    marginBottom: 24,
+    gap: 6,
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: "Inter_600SemiBold",
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   plotText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     color: Colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   playBtn: {
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: "hidden",
-    marginTop: 8,
+    marginTop: 4,
   },
   playBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    height: 56,
+    height: 50,
+    borderRadius: 12,
   },
   playBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "Inter_700Bold",
     color: "#fff",
   },
