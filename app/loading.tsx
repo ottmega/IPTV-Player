@@ -6,7 +6,9 @@ import {
   Animated,
   Easing,
   Alert,
+  Platform,
 } from "react-native";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -83,7 +85,10 @@ export default function LoadingScreen() {
         }));
       });
       setDone(true);
-      setTimeout(() => {
+      setTimeout(async () => {
+        if (Platform.OS !== "web") {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+        }
         router.replace("/(tabs)");
       }, 800);
     } catch (e) {

@@ -1,0 +1,118 @@
+Upgrade the OTTMEGA IPTV Flutter application to implement portrait login mode and landscape dashboard mode.
+
+---
+
+PORTRAIT LOGIN SCREEN
+
+When the app launches:
+
+Force the login screen to open in portrait orientation.
+
+Use Flutter SystemChrome orientation control.
+
+Example:
+
+SystemChrome.setPreferredOrientations([
+DeviceOrientation.portraitUp,
+DeviceOrientation.portraitDown
+]);
+
+The following elements must be displayed vertically and fully responsive:
+
+OTTMEGA logo
+Connect Your Account title
+Login method selector
+Server URL input
+Username input
+Password input
+Connect button
+Privacy Policy
+Terms of Service
+
+Ensure all fields fit properly on mobile screens without overflow.
+
+---
+
+RESPONSIVE LOGIN DESIGN
+
+The login UI must be optimized for mobile portrait layout.
+
+Requirements:
+
+Center aligned form
+Scrollable container for small devices
+Responsive spacing and padding
+Adaptive font sizes
+Large connect button
+
+Form container max width: 420px.
+
+---
+
+LANDSCAPE DASHBOARD MODE
+
+After the user presses the "Connect" button and login is successful:
+
+Automatically switch the app orientation to landscape.
+
+Example:
+
+SystemChrome.setPreferredOrientations([
+DeviceOrientation.landscapeLeft,
+DeviceOrientation.landscapeRight
+]);
+
+All IPTV screens must run in landscape mode:
+
+Home Dashboard
+Live TV
+Movies
+Series
+Player
+Settings
+EPG
+Multi Screen
+Catch-Up
+
+---
+
+ORIENTATION LOCK
+
+Ensure:
+
+Login screen → portrait only
+Main IPTV interface → landscape only
+
+Switch orientation immediately after authentication.
+
+---
+
+SAFE AREA HANDLING
+
+Ensure the UI respects device safe areas for:
+
+Notches
+Rounded corners
+Navigation gestures
+
+Use SafeArea widgets where necessary.
+
+---
+
+TESTING
+
+Verify:
+
+App opens in portrait mode
+Login screen responsive
+No overflow errors
+After login the app switches to landscape
+All IPTV screens render correctly in landscape
+
+---
+
+BUILD
+
+Ensure app compiles successfully.
+
+flutter build apk --release

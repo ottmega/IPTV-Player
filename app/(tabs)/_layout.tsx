@@ -3,8 +3,9 @@ import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
-import React from "react";
+import React, { useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import * as ScreenOrientation from "expo-screen-orientation";
 import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
@@ -110,6 +111,12 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    }
+  }, []);
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
