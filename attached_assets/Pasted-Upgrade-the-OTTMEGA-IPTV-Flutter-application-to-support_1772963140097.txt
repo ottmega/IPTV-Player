@@ -1,0 +1,155 @@
+Upgrade the OTTMEGA IPTV Flutter application to support proper mobile responsive design and orientation switching.
+
+---
+
+ORIENTATION BEHAVIOR
+
+Implement different orientation behavior:
+
+Login screen:
+Portrait mode only.
+
+After successful login:
+Automatically switch to landscape mode.
+
+Use Flutter SystemChrome orientation control.
+
+Example behavior:
+
+App launch → portrait login screen
+User logs in → app switches to landscape dashboard
+
+---
+
+RESPONSIVE MOBILE DESIGN
+
+The current layout is optimized for TV screens only.
+
+Implement responsive UI so the app works correctly on mobile devices.
+
+Use MediaQuery or LayoutBuilder to adapt layouts based on screen width.
+
+Example breakpoints:
+
+Mobile:
+width < 700
+
+Tablet:
+width 700–1000
+
+TV / large screens:
+width > 1000
+
+---
+
+LIVE TV RESPONSIVE FIX
+
+On mobile devices:
+
+Categories must appear as a horizontal scrollable bar instead of a fixed sidebar.
+
+Example mobile layout:
+
+Top bar
+Category scroll bar
+Channel grid
+
+Channel grid must automatically adapt:
+
+2 columns on small phones
+3 columns on large phones
+4 columns on tablets
+
+---
+
+MOVIES AND SERIES RESPONSIVE GRID
+
+Fix movie and series grid layout.
+
+Implement adaptive grid:
+
+Mobile small screens:
+2 columns
+
+Mobile large screens:
+3 columns
+
+Tablet:
+4 columns
+
+TV screens:
+6 columns
+
+Use GridView.builder with dynamic crossAxisCount.
+
+---
+
+CHANNEL CARD RESIZE
+
+Channel cards must automatically resize based on screen size.
+
+Adjust:
+
+logo size
+font size
+padding
+
+to avoid overflow issues.
+
+---
+
+SIDEBAR BEHAVIOR
+
+Left sidebar categories should only appear on large screens or TV devices.
+
+For mobile devices:
+
+Replace sidebar with a horizontal category selector.
+
+---
+
+TOP NAVIGATION BAR
+
+Ensure top bar elements are responsive:
+
+Time
+Search bar
+View toggle buttons
+
+Elements should wrap or resize on smaller screens.
+
+---
+
+BOTTOM NAVIGATION FIX
+
+Ensure bottom navigation bar works properly on mobile.
+
+Tabs:
+
+Home
+Live TV
+Movies
+Series
+Settings
+
+Icons must scale correctly for small screens.
+
+---
+
+TESTING
+
+Verify the following:
+
+Login screen opens in portrait
+After login dashboard switches to landscape
+Live TV categories display properly on mobile
+Movies and series grid responsive
+Channel cards do not overflow
+
+---
+
+BUILD
+
+Ensure app builds correctly:
+
+flutter build apk --release
