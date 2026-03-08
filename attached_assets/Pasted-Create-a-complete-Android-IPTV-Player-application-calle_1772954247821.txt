@@ -1,0 +1,341 @@
+Create a complete Android IPTV Player application called "OTTMEGA IPTV".
+
+IMPORTANT:
+The app must follow all Google Play Store policies to prevent removal.
+
+The application must function only as a media player and must NOT include any TV channels, movies, or copyrighted content.
+
+Users must provide their own IPTV playlists.
+
+Add a disclaimer stating that the app does not provide content.
+
+---
+
+APP NAME
+
+OTTMEGA IPTV
+
+---
+
+TECH STACK
+
+Mobile App:
+Flutter + Dart
+
+Video Player:
+ExoPlayer or VLC player
+
+Backend (optional analytics):
+Node.js + Express
+
+Database:
+MySQL
+
+---
+
+PLAY STORE COMPLIANCE REQUIREMENTS
+
+The app must include:
+
+Privacy Policy page
+Terms of Use page
+Legal Disclaimer
+
+Add this disclaimer inside the app:
+
+"This app does not provide any TV channels or content. Users must provide their own playlists. The developer is not responsible for the content streamed by users."
+
+The app must not contain:
+
+Preloaded channels
+Pirated content
+Illegal streaming links
+
+---
+
+LOGIN METHODS
+
+Support three IPTV login types:
+
+1. Xtream Codes API
+   Fields:
+   Server URL
+   Username
+   Password
+
+2. M3U Playlist
+   Fields:
+   Playlist URL
+
+3. Stalker Portal
+   Fields:
+   Portal URL
+   MAC Address
+
+---
+
+APP SCREENS
+
+Splash Screen
+Login Screen
+Home Dashboard
+Live TV
+Movies (VOD)
+Series
+Catch-Up
+Favorites
+Multi Screen
+Settings
+Privacy Policy
+Terms of Service
+
+---
+
+HOME DASHBOARD
+
+Display tiles:
+
+Live TV
+Movies
+Series
+Catch Up
+Favorites
+Multi Screen
+Settings
+
+Also include:
+
+Recently Watched
+Continue Watching
+
+Top navigation bar:
+
+Search
+Account
+Settings
+
+---
+
+LIVE TV FEATURES
+
+Channel categories
+Channel logos
+Channel search
+Sort channels
+Favorite channels
+Hide channels
+Recently watched channels
+
+Player Features:
+
+Fullscreen playback
+Subtitle support
+Audio track selection
+Aspect ratio control
+Playback speed
+Hardware decoding
+Auto reconnect stream
+Buffer control
+
+Supported stream formats:
+
+m3u8
+ts
+mp4
+
+---
+
+EPG (TV GUIDE)
+
+Display:
+
+Channel name
+Current program
+Next program
+Timeline schedule
+Program description
+
+Allow:
+
+Refresh EPG
+Switch between 12h and 24h time formats
+
+---
+
+MOVIES (VOD)
+
+Grid layout with posters.
+
+Movie features:
+
+Search movies
+Movie categories
+Movie details page
+Description
+Genre
+Duration
+Play button
+Continue watching
+Favorite movies
+
+---
+
+SERIES MODULE
+
+Structure:
+
+Series
+Seasons
+Episodes
+
+Features:
+
+Episode player
+Resume episode
+Favorite series
+
+---
+
+CATCH-UP TV
+
+Allow replay of previous TV programs based on EPG.
+
+---
+
+MULTI SCREEN
+
+Allow multiple channels simultaneously.
+
+Modes:
+
+2 screen
+4 screen
+
+---
+
+SEARCH SYSTEM
+
+Global search across:
+
+Channels
+Movies
+Series
+
+---
+
+SETTINGS MODULE
+
+Account Info
+Player Settings
+Player Selection
+Stream Type
+Update Contents
+Parental Control
+Speed Test
+Backup and Restore
+Remote Control
+Language
+Support
+Other Settings
+Clear Cache
+Sign Out
+Check for Updates
+Rate App
+Time Format
+App Info
+
+---
+
+PLAYER SETTINGS
+
+Allow player selection:
+
+Default player
+ExoPlayer
+VLC
+
+Allow stream type:
+
+Auto
+HLS
+MPEGTS
+
+---
+
+UI DESIGN
+
+Modern dark UI
+Material design
+Rounded cards
+Large buttons for Android TV remote navigation
+Responsive layout for phone, tablet and TV
+
+---
+
+DEVICE SUPPORT
+
+Android phone
+Android tablet
+Android TV
+Fire TV
+
+---
+
+ANALYTICS SYSTEM
+
+Track:
+
+Active users
+Device type
+Country
+City
+IP address
+Currently playing channel
+
+Show analytics in admin dashboard.
+
+---
+
+ADMIN DASHBOARD
+
+Admin login
+
+Dashboard stats:
+
+Total users
+Active users
+Device analytics
+Country analytics
+Real-time viewers
+
+Admin features:
+
+View active users
+View device types
+View IP addresses
+View cities and countries
+Monitor live streams
+
+---
+
+PROJECT STRUCTURE
+
+/mobile-app
+/backend-api
+/admin-dashboard
+
+Use clean architecture with controllers, services, and models.
+
+---
+
+APK BUILD
+
+Provide build instructions:
+
+flutter build apk --release
+
+Ensure the project compiles and produces an installable APK.
+
+Include comments explaining each module.
+
+---
