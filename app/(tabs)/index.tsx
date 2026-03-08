@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -19,75 +19,115 @@ import { useIPTV } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-const TILES = [
-  { key: "live", label: "Live TV", icon: "tv" as const, route: "/(tabs)/live", color: Colors.accent, bg: "#4F8EF7" },
-  { key: "movies", label: "Movies", icon: "film" as const, route: "/(tabs)/movies", color: Colors.gradient2, bg: "#7C3AED" },
-  { key: "series", label: "Series", icon: "play-circle" as const, route: "/(tabs)/series", color: Colors.success, bg: "#059669" },
-  { key: "catchup", label: "Catch Up", icon: "time" as const, route: "/catchup", color: "#F59E0B", bg: "#D97706" },
-  { key: "favorites", label: "Favorites", icon: "heart" as const, route: "/favorites", color: "#F87171", bg: "#DC2626" },
-  { key: "multiscreen", label: "Multi Screen", icon: "grid" as const, route: "/multiscreen", color: "#22D3EE", bg: "#0891B2" },
+const MAIN_TILES = [
+  { key: "live", label: "Live TV", icon: "tv" as const, route: "/(tabs)/live", color: "#4F8EF7", grad: ["#1a3a6e", "#2d5bb5"] as [string, string] },
+  { key: "epg", label: "EPG Guide", icon: "calendar" as const, route: "/epg", color: "#A855F7", grad: ["#3b1a6e", "#6d2dbf"] as [string, string] },
+  { key: "movies", label: "VOD", icon: "film" as const, route: "/(tabs)/movies", color: "#10B981", grad: ["#0a4230", "#0d6648"] as [string, string] },
+  { key: "series", label: "Series", icon: "play-circle" as const, route: "/(tabs)/series", color: "#F59E0B", grad: ["#4a2e05", "#7a4d0a"] as [string, string] },
 ];
+
+const SHORTCUTS = [
+  { key: "account", label: "Account", icon: "person-circle-outline" as const, route: "/(tabs)/settings" },
+  { key: "multiscreen", label: "Multi Screen", icon: "grid-outline" as const, route: "/multiscreen" },
+  { key: "catchup", label: "Catch Up", icon: "time-outline" as const, route: "/catchup" },
+  { key: "favorites", label: "Favorites", icon: "heart-outline" as const, route: "/favorites" },
+  { key: "settings", label: "Settings", icon: "settings-outline" as const, route: "/(tabs)/settings" },
+];
+
+function useCurrentTime() {
+  const [time, setTime] = useState(getNow());
+  useEffect(() => {
+    const t = setInterval(() => setTime(getNow()), 10000);
+    return () => clearInterval(t);
+  }, []);
+  return time;
+}
+
+function getNow() {
+  const now = new Date();
+  const h = now.getHours() % 12 || 12;
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ampm = now.getHours() >= 12 ? "PM" : "AM";
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return {
+    time: `${String(h).padStart(2, "0")}:${mm} ${ampm}`,
+    date: `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`,
+  };
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { userInfo, channels, movies, series, history, loginType } = useIPTV();
+  const { userInfo, channels, movies, series, history } = useIPTV();
+  const { time, date } = useCurrentTime();
 
   const continueWatching = history.filter((h) => h.progress && h.progress > 0 && h.progress < 0.95).slice(0, 10);
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const leftPadding = Platform.OS === "web" ? 24 : insets.left + 20;
-  const rightPadding = Platform.OS === "web" ? 24 : insets.right + 20;
+  const leftPadding = Platform.OS === "web" ? 24 : insets.left + 16;
+  const rightPadding = Platform.OS === "web" ? 24 : insets.right + 16;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
     <View style={[styles.container, { paddingTop: topPadding }]}>
+      <LinearGradient
+        colors={["#070714", "#0A0A18", "#070714"]}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View style={[styles.header, { paddingLeft: leftPadding, paddingRight: rightPadding }]}>
-        <View>
-          <Text style={styles.greeting}>Good {getGreeting()}</Text>
-          <Text style={styles.username}>{userInfo?.username || "Guest"}</Text>
+        <View style={styles.headerLeft}>
+          <LinearGradient
+            colors={[Colors.gradient1, Colors.gradient2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerLogo}
+          >
+            <Ionicons name="play" size={14} color="#fff" />
+          </LinearGradient>
+          <View>
+            <Text style={styles.headerBrand}>OTTMEGA IPTV</Text>
+            <Text style={styles.headerUser}>{userInfo?.username || "Guest"}</Text>
+          </View>
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTime}>{time}</Text>
+          <Text style={styles.headerDate}>{date}</Text>
         </View>
         <View style={styles.headerRight}>
-          {userInfo?.expDate && userInfo.expDate !== "N/A" && (
-            <View style={styles.expiryBadge}>
-              <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-              <Text style={styles.expiryText}>Exp: {userInfo.expDate}</Text>
-            </View>
-          )}
-          <Pressable
-            style={styles.headerBtn}
-            onPress={() => { router.push("/search"); Haptics.selectionAsync(); }}
-          >
-            <Ionicons name="search" size={20} color={Colors.text} />
+          <Pressable style={styles.headerBtn} onPress={() => { router.push("/search"); Haptics.selectionAsync(); }}>
+            <Ionicons name="search" size={19} color={Colors.text} />
           </Pressable>
-          <Pressable
-            style={styles.headerBtn}
-            onPress={() => { router.push("/(tabs)/settings"); Haptics.selectionAsync(); }}
-          >
-            <Ionicons name="settings-outline" size={20} color={Colors.text} />
+          <Pressable style={styles.headerBtn} onPress={() => { router.push("/(tabs)/settings"); Haptics.selectionAsync(); }}>
+            <Ionicons name="settings-outline" size={19} color={Colors.text} />
           </Pressable>
         </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingLeft: leftPadding, paddingRight: rightPadding, paddingBottom: bottomPadding + 80 },
-        ]}
+        contentContainerStyle={[styles.scroll, { paddingLeft: leftPadding, paddingRight: rightPadding, paddingBottom: bottomPadding + 80 }]}
       >
         <View style={styles.statsRow}>
-          <StatCard icon="tv" label="Channels" value={channels.length} color={Colors.accent} />
-          <StatCard icon="film" label="Movies" value={movies.length} color={Colors.gradient2} />
-          <StatCard icon="play-circle" label="Series" value={series.length} color={Colors.success} />
-          <StatCard icon="time" label="History" value={history.length} color="#F59E0B" />
+          <StatPill icon="tv" value={channels.length} label="Live" color={Colors.accent} />
+          <StatPill icon="film" value={movies.length} label="Movies" color={Colors.gradient2} />
+          <StatPill icon="play-circle" value={series.length} label="Series" color={Colors.success} />
+          <StatPill icon="time" value={history.length} label="Watched" color="#F59E0B" />
         </View>
 
         <Text style={styles.sectionTitle}>Browse</Text>
-        <View style={styles.tilesGrid}>
-          {TILES.map((tile) => (
-            <TileCard key={tile.key} tile={tile} />
+        <View style={styles.mainTilesRow}>
+          {MAIN_TILES.map((tile) => (
+            <MainTile key={tile.key} tile={tile} />
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Quick Access</Text>
+        <View style={styles.shortcutsRow}>
+          {SHORTCUTS.map((s) => (
+            <ShortcutBtn key={s.key} item={s} />
           ))}
         </View>
 
@@ -126,14 +166,11 @@ export default function HomeScreen() {
 
         {history.length === 0 && (
           <View style={styles.emptySection}>
-            <LinearGradient
-              colors={[Colors.gradient1 + "22", Colors.gradient2 + "22"]}
-              style={styles.emptyIcon}
-            >
-              <Ionicons name="play" size={32} color={Colors.accent} />
+            <LinearGradient colors={[Colors.gradient1 + "22", Colors.gradient2 + "22"]} style={styles.emptyIcon}>
+              <Ionicons name="play" size={28} color={Colors.accent} />
             </LinearGradient>
             <Text style={styles.emptyTitle}>Ready to Stream</Text>
-            <Text style={styles.emptyText}>Connect your playlist and start watching</Text>
+            <Text style={styles.emptyText}>Select a category above to start watching</Text>
           </View>
         )}
       </ScrollView>
@@ -141,10 +178,9 @@ export default function HomeScreen() {
   );
 }
 
-function TileCard({ tile }: { tile: typeof TILES[number] }) {
+function MainTile({ tile }: { tile: typeof MAIN_TILES[number] }) {
   const scale = useRef(new Animated.Value(1)).current;
-
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.93, useNativeDriver: true, speed: 30 }).start();
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, speed: 30 }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
 
   return (
@@ -152,21 +188,46 @@ function TileCard({ tile }: { tile: typeof TILES[number] }) {
       onPress={() => { router.push(tile.route as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
+      style={styles.mainTileWrap}
     >
-      <Animated.View style={[styles.tile, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.mainTile, { transform: [{ scale }] }]}>
         <LinearGradient
-          colors={[tile.bg + "33", tile.bg + "11"]}
-          style={styles.tileGradient}
+          colors={tile.grad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.mainTileGradient}
         >
-          <View style={[styles.tileIconWrap, { backgroundColor: tile.bg + "28" }]}>
-            <Ionicons name={tile.icon} size={32} color={tile.color} />
+          <View style={[styles.mainTileCircle, { borderColor: tile.color + "60" }]}>
+            <Ionicons name={tile.icon} size={36} color={tile.color} />
           </View>
-          <Text style={styles.tileLabel}>{tile.label}</Text>
-          <Ionicons name="chevron-forward" size={14} color={tile.color + "88"} />
+          <Text style={styles.mainTileLabel}>{tile.label}</Text>
         </LinearGradient>
-        <View style={[styles.tileBorderAccent, { backgroundColor: tile.color }]} />
       </Animated.View>
     </Pressable>
+  );
+}
+
+function ShortcutBtn({ item }: { item: typeof SHORTCUTS[number] }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.shortcut, pressed && styles.shortcutPressed]}
+      onPress={() => { router.push(item.route as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+    >
+      <View style={styles.shortcutCircle}>
+        <Ionicons name={item.icon} size={22} color={Colors.accent} />
+      </View>
+      <Text style={styles.shortcutLabel}>{item.label}</Text>
+    </Pressable>
+  );
+}
+
+function StatPill({ icon, value, label, color }: { icon: any; value: number; label: string; color: string }) {
+  return (
+    <View style={[styles.statPill, { borderColor: color + "30" }]}>
+      <Ionicons name={icon} size={16} color={color} />
+      <Text style={[styles.statValue, { color }]}>{value.toLocaleString()}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -180,19 +241,15 @@ function ContinueCard({ item }: { item: ReturnType<typeof useIPTV>["history"][nu
         {item.thumbnail ? (
           <Image source={{ uri: item.thumbnail }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
-          <View style={styles.thumbnailPlaceholder}>
-            <Ionicons name="play" size={24} color={Colors.textMuted} />
-          </View>
+          <View style={styles.thumbPlaceholder}><Ionicons name="play" size={22} color={Colors.textMuted} /></View>
         )}
         <LinearGradient colors={["transparent", "rgba(0,0,0,0.85)"]} style={StyleSheet.absoluteFill} />
         {item.progress !== undefined && (
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${Math.min(item.progress * 100, 100)}%` }]} />
+            <View style={[styles.progressFill, { width: `${Math.min(item.progress * 100, 100)}%` as any }]} />
           </View>
         )}
-        <View style={styles.playOverlay}>
-          <Ionicons name="play-circle" size={36} color="rgba(255,255,255,0.9)" />
-        </View>
+        <View style={styles.playOverlay}><Ionicons name="play-circle" size={36} color="rgba(255,255,255,0.9)" /></View>
       </View>
       <Text style={styles.continueTitle} numberOfLines={2}>{item.name}</Text>
       {item.progress !== undefined && (
@@ -212,20 +269,10 @@ function RecentCard({ item }: { item: ReturnType<typeof useIPTV>["history"][numb
         {item.thumbnail ? (
           <Image source={{ uri: item.thumbnail }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
-          <View style={styles.thumbnailPlaceholder}>
-            <Ionicons name={item.type === "channel" ? "tv" : "film"} size={20} color={Colors.textMuted} />
-          </View>
+          <View style={styles.thumbPlaceholder}><Ionicons name={item.type === "channel" ? "tv" : "film"} size={18} color={Colors.textMuted} /></View>
         )}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.7)"]}
-          style={styles.recentGradient}
-        />
         <View style={styles.recentTypeBadge}>
-          <Ionicons
-            name={item.type === "channel" ? "tv" : item.type === "movie" ? "film" : "play-circle"}
-            size={10}
-            color={Colors.accent}
-          />
+          <Ionicons name={item.type === "channel" ? "tv" : item.type === "movie" ? "film" : "play-circle"} size={9} color={Colors.accent} />
         </View>
       </View>
       <Text style={styles.recentTitle} numberOfLines={2}>{item.name}</Text>
@@ -233,288 +280,77 @@ function RecentCard({ item }: { item: ReturnType<typeof useIPTV>["history"][numb
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: any; label: string; value: number; color: string }) {
-  return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIcon, { backgroundColor: color + "22" }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color }]}>{value.toLocaleString()}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Morning";
-  if (h < 17) return "Afternoon";
-  return "Evening";
-}
-
-const TILE_WIDTH = Math.min((width - 60) / 3, 200);
+const TILE_W = Math.min((width - 48) / 4, 160);
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
+  container: { flex: 1, backgroundColor: "#070714" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 12,
-  },
-  greeting: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textSecondary,
-  },
-  username: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    color: Colors.text,
-    marginTop: 1,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  expiryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  expiryText: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: Colors.textMuted,
-  },
-  headerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  scroll: {
+    paddingBottom: 10,
     paddingTop: 4,
   },
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerLogo: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  headerBrand: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.text, letterSpacing: 1 },
+  headerUser: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  headerCenter: { alignItems: "center" },
+  headerTime: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.text },
+  headerDate: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  headerRight: { flexDirection: "row", gap: 6 },
+  headerBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.cardBorder },
+  scroll: { paddingTop: 4 },
+  statsRow: { flexDirection: "row", gap: 8, marginBottom: 18 },
+  statPill: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1 },
+  statValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  statLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  sectionTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textSecondary, marginBottom: 12, marginTop: 4, textTransform: "uppercase", letterSpacing: 1 },
+  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 4 },
+  seeAll: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.accent },
+  mainTilesRow: { flexDirection: "row", gap: 10, marginBottom: 20, flexWrap: "wrap" },
+  mainTileWrap: { width: TILE_W },
+  mainTile: { borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  mainTileGradient: { paddingVertical: 20, alignItems: "center", gap: 12 },
+  mainTileCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
   },
-  statValue: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-  },
-  statLabel: {
-    fontSize: 10,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: Colors.text,
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  seeAll: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    color: Colors.accent,
-  },
-  tilesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 24,
-  },
-  tile: {
-    width: TILE_WIDTH,
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    position: "relative",
-  },
-  tileGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    gap: 12,
-  },
-  tileIconWrap: {
+  mainTileLabel: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
+  shortcutsRow: { flexDirection: "row", gap: 8, marginBottom: 20, flexWrap: "wrap" },
+  shortcut: { alignItems: "center", gap: 8, minWidth: 64 },
+  shortcutPressed: { opacity: 0.7, transform: [{ scale: 0.95 }] },
+  shortcutCircle: {
     width: 52,
     height: 52,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tileLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.text,
-  },
-  tileBorderAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 3,
-    height: "100%",
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  horizontalList: {
-    paddingRight: 20,
-    gap: 12,
-    marginBottom: 8,
-  },
-  continueCard: {
-    width: 180,
-  },
-  continueThumbnail: {
-    width: 180,
-    height: 100,
-    borderRadius: 12,
-    overflow: "hidden",
+    borderRadius: 26,
     backgroundColor: Colors.surface,
-    marginBottom: 8,
-  },
-  thumbnailPlaceholder: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
-  progressBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: Colors.accent,
-    borderRadius: 2,
-  },
-  playOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  continueTitle: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.text,
-    lineHeight: 16,
-  },
-  continueProgress: {
-    fontSize: 10,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  recentCard: {
-    width: 110,
-    alignItems: "center",
-  },
-  recentThumb: {
-    width: 110,
-    height: 110,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 8,
-    backgroundColor: Colors.surface,
-  },
-  recentGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 48,
-  },
-  recentTypeBadge: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recentTitle: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: Colors.text,
-    textAlign: "center",
-    lineHeight: 15,
-  },
-  emptySection: {
-    alignItems: "center",
-    paddingVertical: 32,
-    gap: 12,
-  },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    color: Colors.text,
-  },
-  emptyText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    textAlign: "center",
-    maxWidth: 220,
-  },
+  shortcutLabel: { fontSize: 10, fontFamily: "Inter_500Medium", color: Colors.textSecondary, textAlign: "center" },
+  horizontalList: { paddingRight: 16, gap: 10, marginBottom: 8 },
+  continueCard: { width: 170 },
+  continueThumbnail: { width: 170, height: 96, borderRadius: 10, overflow: "hidden", backgroundColor: Colors.surface, marginBottom: 7 },
+  thumbPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.card },
+  progressBar: { position: "absolute", bottom: 0, left: 0, right: 0, height: 3, backgroundColor: "rgba(255,255,255,0.2)" },
+  progressFill: { height: "100%", backgroundColor: Colors.accent, borderRadius: 2 },
+  playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  continueTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.text, lineHeight: 16 },
+  continueProgress: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
+  recentCard: { width: 100, alignItems: "center" },
+  recentThumb: { width: 100, height: 100, borderRadius: 10, overflow: "hidden", marginBottom: 7, backgroundColor: Colors.surface },
+  recentTypeBadge: { position: "absolute", top: 5, left: 5, width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
+  recentTitle: { fontSize: 10, fontFamily: "Inter_500Medium", color: Colors.text, textAlign: "center", lineHeight: 13 },
+  emptySection: { alignItems: "center", paddingVertical: 32, gap: 10 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.text },
+  emptyText: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center", maxWidth: 200 },
 });

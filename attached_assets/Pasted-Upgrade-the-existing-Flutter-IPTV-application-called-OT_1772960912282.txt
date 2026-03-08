@@ -1,0 +1,225 @@
+Upgrade the existing Flutter IPTV application called "OTTMEGA IPTV".
+
+The current layout is incorrect. Improve the user interface to match a professional IPTV layout similar to XCIPTV or IPTV Smarters.
+
+---
+
+LANDSCAPE MODE AFTER LOGIN
+
+When the user logs in successfully:
+
+Automatically switch the application to landscape mode.
+
+Do not require the user to rotate the phone manually.
+
+Keep login screen portrait, but switch to landscape once the user enters the IPTV dashboard.
+
+---
+
+DATA LOADING SCREEN
+
+After login:
+
+Do not open the home screen immediately.
+
+First load all data:
+
+Live TV channels
+Movies (VOD)
+Series
+EPG (TV Guide)
+
+While loading show a fullscreen processing screen with a message:
+
+"Updating Media Contents"
+
+Show loading boxes for:
+
+LIVE TV
+VOD
+SERIES
+GUIDE
+
+Each box should change from "Waiting..." to "Completed" when finished.
+
+Only open the main dashboard after all content is loaded.
+
+---
+
+LIVE TV LAYOUT FIX
+
+Fix the Live TV screen layout.
+
+Current problem:
+Categories appear on top.
+
+Correct layout must be:
+
+LEFT SIDE
+
+Channel categories in a vertical sidebar.
+
+Example:
+
+Favorites
+Recent Search
+Sports
+Entertainment
+Movies
+Kids
+News
+
+RIGHT SIDE
+
+Channel list or grid.
+
+Each channel card must include:
+
+Channel logo
+Channel name
+Play button
+Favorite icon
+
+The layout must be similar to professional IPTV apps.
+
+---
+
+CHANNEL GRID DESIGN
+
+Channel thumbnails must be larger and clearly visible.
+
+Each card must include:
+
+Channel logo
+Channel name
+Quality tag (HD / FHD / 4K)
+
+Grid spacing must be consistent.
+
+---
+
+HEADER BAR
+
+Top bar must include:
+
+Time
+Date
+Search icon
+Sort icon
+Category label
+
+Example:
+
+02:25 PM
+Sunday, 8 Mar 2026
+
+---
+
+EPG DESIGN
+
+Create a TV guide screen with rows like this:
+
+Channel Logo
+Channel Name
+Program timeline
+
+Each program slot should display:
+
+Program title
+Start time
+End time
+
+---
+
+HOME DASHBOARD DESIGN
+
+Improve the dashboard with circular IPTV style icons.
+
+Large buttons:
+
+Live TV
+EPG
+VOD
+Series
+
+Bottom shortcuts:
+
+Account
+Multi Screen
+Catch Up
+Favorites
+Settings
+
+---
+
+MODERN IPTV DESIGN
+
+Apply a professional IPTV style.
+
+Design requirements:
+
+Dark blue gradient background
+Glass UI cards
+Large icons
+Soft shadows
+Smooth animations
+TV-friendly layout
+
+---
+
+RESPONSIVE DESIGN
+
+Ensure UI works properly on:
+
+Android phones
+Android tablets
+Android TV
+Fire TV
+
+---
+
+PERFORMANCE
+
+Improve IPTV performance.
+
+Add:
+
+Hardware decoding
+Auto reconnect
+Fast channel switching
+Buffer optimization
+
+---
+
+PROJECT STRUCTURE
+
+Keep clean architecture.
+
+Folders:
+
+screens
+components
+player
+services
+models
+storage
+
+---
+
+TESTING
+
+Ensure the following works:
+
+Landscape mode activates after login
+Categories show on left sidebar
+Channels show on right grid
+Loading screen appears before dashboard
+All modules load successfully
+
+---
+
+APK BUILD
+
+Provide instructions:
+
+flutter build apk --release

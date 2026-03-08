@@ -23,6 +23,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="loading" options={{ animation: "fade" }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="player" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="epg" />
