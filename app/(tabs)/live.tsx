@@ -64,6 +64,7 @@ export default function LiveTVScreen() {
   const [sortBy, setSortBy] = useState<"name" | "favorites">("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const { time, date } = useNow();
 
   const isPortrait = height > width;
@@ -207,28 +208,18 @@ export default function LiveTVScreen() {
             <Pressable style={styles.headerIconBtn} onPress={() => { setViewMode((v) => v === "grid" ? "list" : "grid"); Haptics.selectionAsync(); }}>
               <Ionicons name={viewMode === "grid" ? "list" : "grid"} size={18} color="rgba(255,255,255,0.7)" />
             </Pressable>
+            <Pressable
+              style={[styles.headerIconBtn, search.length > 0 && styles.headerIconBtnActive]}
+              onPress={() => { setShowSearch(true); Haptics.selectionAsync(); }}
+            >
+              <Ionicons name="search" size={18} color={search.length > 0 ? "#FFD700" : "rgba(255,255,255,0.7)"} />
+            </Pressable>
           </View>
         </View>
       </LinearGradient>
 
-      {/* SEARCH BAR */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={15} color="rgba(255,255,255,0.4)" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search channels..."
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch("")} hitSlop={8}>
-            <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.4)" />
-          </Pressable>
-        )}
-      </View>
-
+      {/* BODY (header below, search overlay lives here) */}
+      <View style={styles.bodyArea}>
       {/* MAIN LAYOUT */}
       <View style={styles.mainLayout}>
 
@@ -340,6 +331,55 @@ export default function LiveTVScreen() {
             />
           )}
         </View>
+      </View>
+
+      {/* SEARCH OVERLAY */}
+      {showSearch && (
+        <View style={[StyleSheet.absoluteFill, styles.searchOverlay]}>
+          <View style={styles.searchOverlayBar}>
+            <Ionicons name="search" size={16} color="rgba(255,255,255,0.5)" />
+            <TextInput
+              style={styles.searchOverlayInput}
+              placeholder="Search channels..."
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoFocus
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch("")} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.45)" />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => { setShowSearch(false); setSearch(""); Haptics.selectionAsync(); }}
+              hitSlop={10}
+              style={styles.searchOverlayCloseBtn}
+            >
+              <Text style={styles.searchOverlayCloseText}>Cancel</Text>
+            </Pressable>
+          </View>
+          {search.length > 0 && (
+            <Text style={styles.searchResultCount}>{filtered.length} channel{filtered.length !== 1 ? "s" : ""} found</Text>
+          )}
+          <FlatList
+            key={`search-${numCols}`}
+            data={filtered}
+            keyExtractor={(c) => c.streamId}
+            numColumns={numCols}
+            columnWrapperStyle={numCols > 1 ? styles.gridRow : undefined}
+            contentContainerStyle={[styles.gridList, { paddingBottom: listBottomPad }]}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews
+            windowSize={8}
+            initialNumToRender={24}
+            maxToRenderPerBatch={16}
+            keyboardShouldPersistTaps="handled"
+            renderItem={renderTile}
+          />
+        </View>
+      )}
       </View>
 
       {/* MOBILE CATEGORY MODAL */}
@@ -493,20 +533,51 @@ const styles = StyleSheet.create({
   headerCategoryCount: { fontSize: 10, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.55)" },
   headerActions: { flexDirection: "row", gap: 8 },
   headerIconBtn: { padding: 4 },
+  headerIconBtnActive: { opacity: 1 },
 
-  /* SEARCH */
-  searchBar: {
+  /* BODY AREA */
+  bodyArea: { flex: 1, position: "relative" },
+
+  /* SEARCH OVERLAY */
+  searchOverlay: {
+    backgroundColor: "#080F1E",
+    zIndex: 50,
+  },
+  searchOverlayBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#111C30",
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    gap: 8,
-    height: 42,
+    paddingVertical: 11,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#fff" },
+  searchOverlayInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Inter_400Regular",
+    color: "#fff",
+    height: 28,
+  },
+  searchOverlayCloseBtn: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+  },
+  searchOverlayCloseText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: "#FFD700",
+  },
+  searchResultCount: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
 
   /* MAIN LAYOUT */
   mainLayout: { flex: 1, flexDirection: "row" },
