@@ -19,24 +19,26 @@ import { useIPTV, Channel } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-function getGridCols(w: number, isPortrait: boolean): number {
+function getGridCols(contentW: number, isPortrait: boolean): number {
   if (isPortrait) {
-    if (w < 380) return 2;
-    if (w < 600) return 3;
+    if (contentW < 340) return 2;
+    if (contentW < 520) return 3;
     return 4;
   }
-  if (w < 500) return 3;
-  if (w < 700) return 4;
-  if (w < 900) return 5;
-  if (w < 1200) return 6;
+  if (contentW < 400) return 3;
+  if (contentW < 580) return 4;
+  if (contentW < 760) return 5;
+  if (contentW < 1000) return 6;
   return 7;
 }
 
-function getCardSize(w: number, cols: number, sidebarVisible: boolean, isPortrait: boolean): number {
-  const usableWidth = sidebarVisible ? w - 160 : w;
-  const padding = isPortrait ? 20 : 24;
-  const gap = (cols - 1) * 8;
-  return Math.floor((usableWidth - padding - gap) / cols);
+const GRID_INNER_PADDING = 20;
+const CARD_GAP = 8;
+
+function computeGrid(contentW: number, isPortrait: boolean) {
+  const cols = getGridCols(contentW, isPortrait);
+  const cardSize = Math.floor((contentW - GRID_INNER_PADDING - (cols - 1) * CARD_GAP) / cols);
+  return { cols, cardSize };
 }
 
 function getQualityTag(name: string): string | null {
@@ -86,6 +88,10 @@ export default function LiveTVScreen() {
   const topPadding = isWeb ? 67 : insets.top;
   const bottomPadding = isWeb ? 34 : insets.bottom;
   const leftPadding = isWeb ? 0 : insets.left;
+  const rightPadding = isWeb ? 0 : insets.right;
+
+  const effectiveContentWidth = width - leftPadding - rightPadding - (sidebarVisible ? 160 : 0);
+  const { cols: numCols, cardSize } = computeGrid(effectiveContentWidth, isPortrait);
 
   const allCategories = useMemo(
     () => [
@@ -118,8 +124,6 @@ export default function LiveTVScreen() {
   }, [channels, selectedCategory, search, sortBy, isFavorite]);
 
   const selectedLabel = allCategories.find((c) => c.categoryId === selectedCategory)?.categoryName || "All Channels";
-  const numCols = getGridCols(width, isPortrait);
-  const cardSize = getCardSize(width, numCols, sidebarVisible, isPortrait);
 
   const openChannel = (channel: Channel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -129,7 +133,7 @@ export default function LiveTVScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topPadding, paddingLeft: leftPadding }]}>
+    <View style={[styles.container, { paddingTop: topPadding, paddingLeft: leftPadding, paddingRight: rightPadding }]}>
       <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
         <View style={styles.topBarLeft}>
           {!isMobile && (

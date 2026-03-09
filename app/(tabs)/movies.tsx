@@ -18,16 +18,16 @@ import { useIPTV, Movie } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-function getNumCols(w: number, isPortrait: boolean): number {
+function getNumCols(contentW: number, isPortrait: boolean): number {
   if (isPortrait) {
-    if (w < 380) return 2;
-    if (w < 600) return 3;
+    if (contentW < 320) return 2;
+    if (contentW < 480) return 3;
     return 4;
   }
-  if (w < 500) return 3;
-  if (w < 700) return 4;
-  if (w < 1000) return 5;
-  if (w < 1300) return 6;
+  if (contentW < 380) return 3;
+  if (contentW < 560) return 4;
+  if (contentW < 800) return 5;
+  if (contentW < 1100) return 6;
   return 7;
 }
 
@@ -43,10 +43,14 @@ export default function MoviesScreen() {
 
   const topPadding = isWeb ? 67 : insets.top;
   const bottomPadding = isWeb ? 34 : insets.bottom;
-  const horizPad = 12;
-  const numCols = getNumCols(width, isPortrait);
-  const gap = isPortrait ? 8 : 10;
-  const cardWidth = Math.floor((width - horizPad * 2 - gap * (numCols - 1)) / numCols);
+  const leftPadding = isWeb ? 16 : Math.max(12, insets.left + 8);
+  const rightPadding = isWeb ? 16 : Math.max(12, insets.right + 8);
+  const horizPad = leftPadding;
+
+  const innerGap = isPortrait ? 8 : 10;
+  const effectiveW = width - leftPadding - rightPadding;
+  const numCols = getNumCols(effectiveW, isPortrait);
+  const cardWidth = Math.floor((effectiveW - innerGap * (numCols - 1)) / numCols);
 
   const allCategories = useMemo(
     () => [{ categoryId: "all", categoryName: "All" }, ...movieCategories],
@@ -64,8 +68,8 @@ export default function MoviesScreen() {
   }, [movies, selectedCategory, search]);
 
   return (
-    <View style={[styles.container, { paddingTop: topPadding }]}>
-      <View style={[styles.header, { paddingHorizontal: horizPad }]}>
+    <View style={[styles.container, { paddingTop: topPadding, paddingLeft: leftPadding, paddingRight: rightPadding }]}>
+      <View style={[styles.header, { paddingHorizontal: 0 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>Movies</Text>
           <View style={styles.countBadge}>
@@ -95,7 +99,7 @@ export default function MoviesScreen() {
         data={allCategories}
         keyExtractor={(c) => c.categoryId}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.categoryList, { paddingHorizontal: horizPad }]}
+        contentContainerStyle={[styles.categoryList]}
         renderItem={({ item }) => (
           <Pressable
             style={[styles.chip, selectedCategory === item.categoryId && styles.chipActive]}
@@ -125,9 +129,9 @@ export default function MoviesScreen() {
           data={filtered}
           keyExtractor={(m) => m.streamId}
           numColumns={numCols}
-          contentContainerStyle={[styles.grid, { paddingHorizontal: horizPad, paddingBottom: bottomPadding + 90 }]}
+          contentContainerStyle={[styles.grid, { paddingBottom: bottomPadding + 90 }]}
           showsVerticalScrollIndicator={false}
-          columnWrapperStyle={{ gap, marginBottom: gap }}
+          columnWrapperStyle={{ gap: innerGap, marginBottom: innerGap }}
           renderItem={({ item }) => (
             <MovieCard
               movie={item}
