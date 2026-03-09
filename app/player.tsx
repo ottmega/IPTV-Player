@@ -516,6 +516,7 @@ export default function PlayerScreen() {
     setStreamHealth("unknown");
     setErrorType(null);
     setBufferingSeconds(0);
+    setStallCount(0);
     playbackStarted.current = false;
     isPausedByUser.current = false;
     audioRetryCountRef.current = 0;
@@ -608,6 +609,7 @@ export default function PlayerScreen() {
     setStreamHealth("unknown");
     setErrorType(null);
     setBufferingSeconds(0);
+    setStallCount(0);
     playbackStarted.current = false;
     isPausedByUser.current = false;
     audioRetryCountRef.current = 0;
