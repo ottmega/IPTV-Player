@@ -1,0 +1,227 @@
+First image ka layout XCIPTV / IPTV Smarters style hai:
+
+left categories sidebar
+
+top info header
+
+right large channel grid
+
+full screen layout
+
+background gradient
+
+logo focused tiles
+
+Abhi tumhari app me:
+
+❌ tiles chhote hain
+❌ channel logos placeholder aa rahe
+❌ spacing galat hai
+❌ header simple hai
+❌ UI flat lag rahi hai
+
+Isliye Replit ko clear UI redesign prompt dena padega.
+
+Prompt: Redesign Live TV Screen Like Professional IPTV (XCIPTV Style)
+
+Redesign the Live TV screen UI in OTTMEGA IPTV to match a professional IPTV layout similar to XCIPTV / IPTV Smarters.
+
+The current layout looks basic and does not match a modern IPTV interface.
+
+Use the reference screenshot provided.
+
+SCREEN STRUCTURE
+
+The Live TV screen must have 3 main sections:
+
+Header (top bar)
+
+Left Sidebar (categories)
+
+Right Channel Grid
+
+Layout structure:
+
+HEADER
+---------------------------------
+| Sidebar | Channel Grid        |
+|         |                     |
+|         |                     |
+---------------------------------
+HEADER DESIGN
+
+Header should contain:
+
+Left side:
+
+Current Time
+Current Date
+
+Center:
+
+App Logo
+
+Right side:
+
+Category name
+Sort button
+Search button
+
+Example:
+
+02:25 PM
+Sunday, 8 Mar 2026
+
+Header background should be gradient blue IPTV style.
+
+SIDEBAR (CATEGORY LIST)
+
+Left sidebar must show categories.
+
+Each category row must include:
+
+Category name
+Channel count
+
+Example:
+
+UK | SPORTS (19)
+UK | AMAZON PRIME (12)
+UK | PREMIER SPORTS GB (34)
+UK | ENTERTAINMENT (111)
+
+Sidebar styling:
+
+width: 240px
+background: dark blue gradient
+
+Active category highlight:
+
+text color: yellow
+bold font
+
+Inactive categories:
+
+white text
+opacity: 0.8
+CHANNEL GRID DESIGN
+
+Right side must show a large channel logo grid.
+
+Channel tile layout:
+
++-------------------+
+|                   |
+|   CHANNEL LOGO    |
+|                   |
++-------------------+
+CHANNEL NAME
+
+Tile rules:
+
+aspect ratio: square
+border radius: 10
+background: dark card
+logo resizeMode: contain
+
+Spacing:
+
+grid gap: 14px
+GRID RESPONSIVENESS
+
+Channel grid must adapt to screen width.
+
+Columns:
+
+mobile portrait → 2 columns
+mobile landscape → 4 columns
+tablet → 5 columns
+large tablet → 6 columns
+
+Use dynamic column calculation.
+
+Example:
+
+columns = Math.floor(screenWidth / 160)
+BACKGROUND DESIGN
+
+Use IPTV style background.
+
+Example:
+
+dark blue gradient
+diagonal light streak effect
+
+This matches professional IPTV UI.
+
+CHANNEL LOGO FIX
+
+Currently logos show placeholder icons.
+
+Fix logo loading.
+
+Each channel must use:
+
+channel.stream_icon
+
+Example:
+
+<Image
+ source={{ uri: channel.stream_icon }}
+ resizeMode="contain"
+/>
+
+If icon missing:
+
+show TV placeholder icon
+SEARCH BAR
+
+Add search bar above channel grid.
+
+Search channels...
+
+Typing filters channel list.
+
+FAVORITES SUPPORT
+
+Add heart icon on each tile.
+
+♡ favorite
+
+Favorites appear in Favorites category.
+
+PERFORMANCE
+
+Channel list can contain thousands of items.
+
+Use optimized list:
+
+FlashList
+FlatList
+
+Enable:
+
+windowSize
+removeClippedSubviews
+initialNumToRender
+FULLSCREEN SUPPORT
+
+The screen must fill the entire device display.
+
+Requirements:
+
+SafeAreaView
+flex:1
+no fixed height containers
+
+The UI must render edge-to-edge.
+
+RESULT
+
+The Live TV screen should look similar to the provided reference image:
+
+blue IPTV theme
+left categories
+large channel logos
+clean grid layout
+professional interface
