@@ -47,8 +47,11 @@ export default function SettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const isPortrait = height > width;
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
+  const isWeb = Platform.OS === "web";
+  const topPadding = isWeb ? 67 : insets.top;
+  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const leftPadding = isWeb ? 16 : Math.max(16, insets.left + 4);
+  const rightPadding = isWeb ? 16 : Math.max(16, insets.right + 4);
   const isWide = !isPortrait && width >= 700;
 
   const xtreamCreds = loginType === "xtream" ? (credentials as XtreamCredentials) : null;
@@ -282,8 +285,8 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: topPadding }]}>
-      <View style={styles.pageHeader}>
+    <View style={[styles.container, { paddingTop: topPadding, paddingLeft: leftPadding, paddingRight: rightPadding }]}>
+      <View style={[styles.pageHeader, { paddingHorizontal: 0 }]}>
         <LinearGradient colors={[Colors.gradient1, Colors.gradient2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pageHeaderIcon}>
           <Ionicons name="settings" size={18} color="#fff" />
         </LinearGradient>
@@ -490,10 +493,10 @@ function SegmentRow({ icon, label, options, active, onSelect }: {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  pageHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 12 },
+  pageHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingBottom: 12 },
   pageHeaderIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.text },
-  scroll: { paddingHorizontal: 16 },
+  scroll: { paddingHorizontal: 0 },
   twoCol: { flexDirection: "row", gap: 16 },
   col: { flex: 1 },
   sectionTitle: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 18, marginBottom: 8 },

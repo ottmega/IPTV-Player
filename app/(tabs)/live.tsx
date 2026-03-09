@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useIPTV, Channel } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
@@ -305,31 +306,38 @@ function ChannelGridCard({ channel, cardSize, onPress, isFav, onToggleFav }: {
 }) {
   const quality = getQualityTag(channel.name);
   const qColor = quality ? getQualityColor(quality) : Colors.textMuted;
-  const logoSize = Math.max(28, Math.min(cardSize * 0.52, 60));
-  const fontSize = cardSize < 80 ? 8 : cardSize < 100 ? 10 : 11;
+  const logoSize = Math.max(30, Math.min(cardSize * 0.54, 62));
+  const fontSize = cardSize < 80 ? 8 : cardSize < 100 ? 9 : 11;
 
   return (
     <Pressable style={({ pressed }) => [styles.gridCard, { width: cardSize }, pressed && styles.cardPressed]} onPress={onPress}>
-      <View style={[styles.gridCardLogo, { width: logoSize + 14, height: logoSize }]}>
+      <LinearGradient
+        colors={["#1C1C2E", "#12121C"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.gridLogoArea, { width: logoSize + 16, height: logoSize + 8 }]}>
         {channel.streamIcon ? (
-          <Image source={{ uri: channel.streamIcon }} style={{ width: logoSize, height: logoSize - 4 }} resizeMode="contain" />
+          <Image source={{ uri: channel.streamIcon }} style={{ width: logoSize, height: logoSize }} resizeMode="contain" />
         ) : (
-          <Ionicons name="tv" size={logoSize * 0.6} color={Colors.textMuted} />
-        )}
-        {quality && (
-          <View style={[styles.qualityBadge, { backgroundColor: qColor + "28", borderColor: qColor + "60" }]}>
-            <Text style={[styles.qualityText, { color: qColor }]}>{quality}</Text>
-          </View>
+          <Ionicons name="tv" size={logoSize * 0.55} color={Colors.textMuted} />
         )}
       </View>
       <Text style={[styles.gridCardName, { fontSize }]} numberOfLines={2}>{channel.name}</Text>
-      <View style={styles.gridCardActions}>
-        <Pressable style={styles.favBtnSmall} onPress={onToggleFav} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <View style={styles.gridCardFooter}>
+        {quality && (
+          <View style={[styles.qualityPill, { backgroundColor: qColor + "22", borderColor: qColor + "50" }]}>
+            <Text style={[styles.qualityPillText, { color: qColor }]}>{quality}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }} />
+        <Pressable onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
           <Ionicons name={isFav ? "heart" : "heart-outline"} size={12} color={isFav ? Colors.danger : Colors.textMuted} />
         </Pressable>
-        <Pressable style={styles.playBtnSmall} onPress={onPress}>
-          <Ionicons name="play" size={10} color="#fff" />
-        </Pressable>
+        <View style={styles.playBtnSmall}>
+          <Ionicons name="play" size={9} color="#fff" />
+        </View>
       </View>
     </Pressable>
   );
@@ -343,28 +351,31 @@ function ChannelListRow({ channel, onPress, isFav, onToggleFav }: {
 
   return (
     <Pressable style={({ pressed }) => [styles.listRow, pressed && styles.cardPressed]} onPress={onPress}>
-      <View style={styles.listLogo}>
+      <View style={styles.listLogoWrap}>
         {channel.streamIcon ? (
           <Image source={{ uri: channel.streamIcon }} style={styles.listLogoImg} resizeMode="contain" />
         ) : (
-          <Ionicons name="tv" size={20} color={Colors.textMuted} />
+          <Ionicons name="tv" size={22} color={Colors.textMuted} />
         )}
+        <View style={styles.liveDot} />
       </View>
       <View style={styles.listInfo}>
         <Text style={styles.listName} numberOfLines={1}>{channel.name}</Text>
-        {channel.epgChannelId ? <Text style={styles.listEpg} numberOfLines={1}>{channel.epgChannelId}</Text> : null}
+        {channel.epgChannelId ? (
+          <Text style={styles.listEpg} numberOfLines={1}>{channel.epgChannelId}</Text>
+        ) : null}
       </View>
       {quality && (
-        <View style={[styles.qualityBadgeInline, { backgroundColor: qColor + "28", borderColor: qColor + "60" }]}>
-          <Text style={[styles.qualityText, { color: qColor }]}>{quality}</Text>
+        <View style={[styles.qualityPill, { backgroundColor: qColor + "22", borderColor: qColor + "50" }]}>
+          <Text style={[styles.qualityPillText, { color: qColor }]}>{quality}</Text>
         </View>
       )}
       <Pressable style={styles.favBtn} onPress={onToggleFav} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Ionicons name={isFav ? "heart" : "heart-outline"} size={18} color={isFav ? Colors.danger : Colors.textMuted} />
       </Pressable>
-      <View style={styles.playBtn}>
+      <LinearGradient colors={[Colors.gradient1, Colors.gradient2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.playBtn}>
         <Ionicons name="play" size={14} color="#fff" />
-      </View>
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -452,10 +463,7 @@ const styles = StyleSheet.create({
     minHeight: 32,
     justifyContent: "center",
   },
-  mobileCategoryChipActive: {
-    backgroundColor: Colors.accentSoft,
-    borderColor: Colors.accent,
-  },
+  mobileCategoryChipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   mobileCategoryText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
   mobileCategoryTextActive: { color: Colors.accent },
   mainLayout: { flex: 1, flexDirection: "row" },
@@ -493,79 +501,88 @@ const styles = StyleSheet.create({
   gridList: { padding: 10 },
   gridRow: { gap: 8, marginBottom: 8, justifyContent: "flex-start" },
   gridCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 8,
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     gap: 5,
-    minHeight: 80,
+    minHeight: 88,
+    overflow: "hidden",
   },
   cardPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
-  gridCardLogo: {
+  gridLogoArea: {
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  gridCardName: { fontFamily: "Inter_500Medium", color: Colors.text, textAlign: "center", lineHeight: 14 },
-  gridCardActions: { flexDirection: "row", gap: 6, alignItems: "center" },
-  favBtnSmall: { padding: 4 },
+  gridCardName: { fontFamily: "Inter_500Medium", color: Colors.text, textAlign: "center", lineHeight: 14, width: "100%" },
+  gridCardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    width: "100%",
+  },
+  qualityPill: {
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderWidth: 1,
+  },
+  qualityPillText: { fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   playBtnSmall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: Colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  qualityBadge: {
-    position: "absolute",
-    bottom: -3,
-    right: -3,
-    borderRadius: 4,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderWidth: 1,
-  },
-  qualityBadgeInline: {
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderWidth: 1,
-  },
-  qualityText: { fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   listContent: { padding: 10, gap: 6 },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 10,
     gap: 10,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    minHeight: 56,
+    minHeight: 60,
   },
-  listLogo: {
-    width: 46,
-    height: 34,
-    borderRadius: 7,
+  listLogoWrap: {
+    width: 52,
+    height: 38,
+    borderRadius: 8,
     backgroundColor: Colors.card,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
-  listLogoImg: { width: 40, height: 30 },
+  listLogoImg: { width: 44, height: 32 },
+  liveDot: {
+    position: "absolute",
+    bottom: 3,
+    right: 3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+    borderWidth: 1,
+    borderColor: Colors.surface,
+  },
   listInfo: { flex: 1 },
   listName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.text },
-  listEpg: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
+  listEpg: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
   favBtn: { padding: 4, minHeight: 44, justifyContent: "center" },
   playBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.accent,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useIPTV, SeriesItem } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
@@ -154,32 +155,42 @@ export default function SeriesScreen() {
 function SeriesCard({ item, cardWidth, isFav, onPress, onToggleFav }: {
   item: SeriesItem; cardWidth: number; isFav: boolean; onPress: () => void; onToggleFav: () => void;
 }) {
-  const coverH = cardWidth * 1.4;
-  const titleSize = cardWidth < 90 ? 9 : cardWidth < 110 ? 10 : 12;
+  const coverH = Math.round(cardWidth * 1.45);
+  const titleSize = cardWidth < 80 ? 8 : cardWidth < 100 ? 9 : 11;
 
   return (
-    <Pressable style={({ pressed }) => [{ width: cardWidth }, pressed && styles.cardPressed]} onPress={onPress}>
-      <View style={[styles.coverContainer, { width: cardWidth, height: coverH }]}>
+    <Pressable style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.cardPressed]} onPress={onPress}>
+      <View style={[styles.coverWrap, { height: coverH }]}>
         {item.cover ? (
-          <Image source={{ uri: item.cover }} style={styles.cover} resizeMode="cover" />
+          <Image source={{ uri: item.cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <Ionicons name="play-circle" size={Math.max(20, cardWidth * 0.28)} color={Colors.textMuted} />
+            <Ionicons name="play-circle" size={Math.max(22, cardWidth * 0.28)} color={Colors.textMuted} />
           </View>
         )}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.0)", "rgba(0,0,0,0.88)"]}
+          locations={[0, 0.48, 1]}
+          style={styles.coverGrad}
+        />
         <Pressable style={styles.favOverlay} onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Ionicons name={isFav ? "heart" : "heart-outline"} size={13} color={isFav ? Colors.danger : "#fff"} />
+          <Ionicons name={isFav ? "heart" : "heart-outline"} size={13} color={isFav ? Colors.danger : "rgba(255,255,255,0.8)"} />
         </Pressable>
         {item.rating && (
           <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={8} color={Colors.warning} />
+            <Ionicons name="star" size={8} color="#F59E0B" />
             <Text style={styles.ratingText}>{parseFloat(item.rating).toFixed(1)}</Text>
           </View>
         )}
+        <View style={styles.coverFooter}>
+          <Text style={[styles.coverTitle, { fontSize: titleSize }]} numberOfLines={2}>{item.name}</Text>
+          {(item.year || item.genre) ? (
+            <Text style={styles.coverMeta} numberOfLines={1}>
+              {[item.year, item.genre].filter(Boolean).join(" · ")}
+            </Text>
+          ) : null}
+        </View>
       </View>
-      <Text style={[styles.seriesName, { fontSize: titleSize }]} numberOfLines={2}>{item.name}</Text>
-      {item.year && <Text style={styles.seriesYear}>{item.year}</Text>}
-      {item.genre && cardWidth >= 110 && <Text style={styles.seriesGenre} numberOfLines={1}>{item.genre}</Text>}
     </Pressable>
   );
 }
@@ -221,55 +232,69 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.text },
   categoryList: { paddingBottom: 8, gap: 7 },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 20,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    minHeight: 32,
+    minHeight: 34,
     justifyContent: "center",
   },
   chipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   chipText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
-  chipTextActive: { color: Colors.accent },
+  chipTextActive: { color: Colors.accent, fontFamily: "Inter_600SemiBold" },
   grid: { paddingTop: 4 },
-  cardPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
-  coverContainer: {
+  cardPressed: { opacity: 0.82, transform: [{ scale: 0.96 }] },
+  card: { borderRadius: 12, overflow: "hidden" },
+  coverWrap: {
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: Colors.surface,
-    marginBottom: 5,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
-  cover: { width: "100%", height: "100%" },
-  coverPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.card },
+  coverPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
+  coverGrad: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "62%",
+  },
+  coverFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 7,
+  },
+  coverTitle: { fontFamily: "Inter_600SemiBold", color: "#fff", lineHeight: 14 },
+  coverMeta: { fontSize: 9, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.55)", marginTop: 2 },
   favOverlay: {
     position: "absolute",
-    top: 5,
-    right: 5,
+    top: 6,
+    right: 6,
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
   },
   ratingBadge: {
     position: "absolute",
-    bottom: 5,
-    left: 5,
+    top: 6,
+    left: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    borderRadius: 5,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
   },
-  ratingText: { fontSize: 8, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  seriesName: { fontFamily: "Inter_600SemiBold", color: Colors.text, lineHeight: 15 },
-  seriesYear: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
-  seriesGenre: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
+  ratingText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: Colors.text },
   emptySubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
