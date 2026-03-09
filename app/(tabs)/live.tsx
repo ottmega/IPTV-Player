@@ -11,64 +11,37 @@ import {
   useWindowDimensions,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useIPTV, Channel } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
+const SIDEBAR_W = 200;
+const CARD_GAP = 6;
+const GRID_PADDING = 8;
+
 function getGridCols(contentW: number, isPortrait: boolean): number {
   if (isPortrait) {
-    if (contentW < 340) return 2;
-    if (contentW < 520) return 3;
-    return 4;
+    if (contentW < 300) return 2;
+    if (contentW < 460) return 3;
+    if (contentW < 600) return 4;
+    return 5;
   }
-  if (contentW < 400) return 3;
-  if (contentW < 580) return 4;
-  if (contentW < 760) return 5;
-  if (contentW < 1000) return 6;
+  if (contentW < 380) return 3;
+  if (contentW < 520) return 4;
+  if (contentW < 700) return 5;
+  if (contentW < 900) return 6;
   return 7;
 }
 
-const GRID_INNER_PADDING = 20;
-const CARD_GAP = 8;
-
 function computeGrid(contentW: number, isPortrait: boolean) {
   const cols = getGridCols(contentW, isPortrait);
-  const cardSize = Math.floor((contentW - GRID_INNER_PADDING - (cols - 1) * CARD_GAP) / cols);
+  const cardSize = Math.floor((contentW - GRID_PADDING * 2 - CARD_GAP * (cols - 1)) / cols);
   return { cols, cardSize };
-}
-
-function getQualityTag(name: string): string | null {
-  const upper = name.toUpperCase();
-  if (upper.includes("4K") || upper.includes("UHD")) return "4K";
-  if (upper.includes("FHD") || upper.includes("1080")) return "FHD";
-  if (upper.includes("HD") || upper.includes("720")) return "HD";
-  if (upper.includes("SD")) return "SD";
-  return "HD";
-}
-
-function getQualityColor(tag: string): string {
-  if (tag === "4K") return "#A855F7";
-  if (tag === "FHD") return "#3B82F6";
-  if (tag === "HD") return "#10B981";
-  return Colors.textMuted;
-}
-
-function useNow() {
-  const now = new Date();
-  const h = now.getHours() % 12 || 12;
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  const ampm = now.getHours() >= 12 ? "PM" : "AM";
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return {
-    time: `${String(h).padStart(2, "0")}:${mm} ${ampm}`,
-    date: `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`,
-  };
 }
 
 export default function LiveTVScreen() {
@@ -76,14 +49,15 @@ export default function LiveTVScreen() {
   const insets = useSafeAreaInsets();
   const { channels, liveCategories, toggleFavorite, isFavorite, getStreamUrl, addToHistory, loading, loginType } = useIPTV();
   const [search, setSearch] = useState("");
+  const [sidebarSearch, setSidebarSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"name" | "favorites">("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const { time, date } = useNow();
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   const isPortrait = height > width;
   const isWeb = Platform.OS === "web";
-  const isMobile = width < 700;
+  const isMobile = width < 680;
   const sidebarVisible = !isMobile;
 
   const topPadding = isWeb ? 67 : insets.top;
@@ -91,8 +65,16 @@ export default function LiveTVScreen() {
   const leftPadding = isWeb ? 0 : insets.left;
   const rightPadding = isWeb ? 0 : insets.right;
 
-  const effectiveContentWidth = width - leftPadding - rightPadding - (sidebarVisible ? 160 : 0);
-  const { cols: numCols, cardSize } = computeGrid(effectiveContentWidth, isPortrait);
+  const contentWidth = width - leftPadding - rightPadding - (sidebarVisible ? SIDEBAR_W : 0);
+  const { cols: numCols, cardSize } = computeGrid(contentWidth, isPortrait);
+
+  const channelCountByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const ch of channels) {
+      if (ch.categoryId) map[ch.categoryId] = (map[ch.categoryId] || 0) + 1;
+    }
+    return map;
+  }, [channels]);
 
   const allCategories = useMemo(
     () => [
@@ -102,6 +84,12 @@ export default function LiveTVScreen() {
     ],
     [liveCategories]
   );
+
+  const filteredSidebarCategories = useMemo(() => {
+    if (!sidebarSearch.trim()) return allCategories;
+    const q = sidebarSearch.toLowerCase();
+    return allCategories.filter((c) => c.categoryName.toLowerCase().includes(q));
+  }, [allCategories, sidebarSearch]);
 
   const filtered = useMemo(() => {
     let list = channels;
@@ -115,9 +103,9 @@ export default function LiveTVScreen() {
       list = list.filter((c) => c.name.toLowerCase().includes(q));
     }
     if (sortBy === "favorites") {
-      list = [...list].sort((a, b) => {
-        return (isFavorite("channels", a.streamId) ? -1 : 1) - (isFavorite("channels", b.streamId) ? -1 : 1);
-      });
+      list = [...list].sort((a, b) =>
+        (isFavorite("channels", a.streamId) ? -1 : 1) - (isFavorite("channels", b.streamId) ? -1 : 1)
+      );
     } else {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -133,108 +121,126 @@ export default function LiveTVScreen() {
     router.push({ pathname: "/player", params: { url, title: channel.name, logo: channel.streamIcon, type: "live", streamId: channel.streamId } });
   };
 
+  const selectCategory = (id: string) => {
+    setSelectedCategory(id);
+    setShowCategoryModal(false);
+    Haptics.selectionAsync();
+  };
+
   return (
     <View style={[styles.container, { paddingTop: topPadding, paddingLeft: leftPadding, paddingRight: rightPadding }]}>
-      <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
-        <View style={styles.topBarLeft}>
-          {!isMobile && (
-            <View style={styles.timeBlock}>
-              <Text style={styles.timeText}>{time}</Text>
-              <Text style={styles.dateText}>{date}</Text>
-            </View>
-          )}
-          <View style={styles.categoryLabel}>
-            <Ionicons name="tv" size={12} color={Colors.accent} />
-            <Text style={styles.categoryLabelText} numberOfLines={1}>{selectedLabel}</Text>
-            {filtered.length > 0 && (
-              <Text style={styles.channelCount}>{filtered.length}</Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.topBarRight}>
-          <View style={[styles.searchBox, isMobile && { minWidth: 100, flex: 1 }]}>
-            <Ionicons name="search" size={15} color={Colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={isMobile ? "Search..." : "Search channels..."}
-              placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-            />
-            {search.length > 0 && (
-              <Pressable onPress={() => setSearch("")}>
-                <Ionicons name="close-circle" size={15} color={Colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
+      {/* TOP BAR */}
+      <View style={styles.topBar}>
+        {/* Left actions */}
+        <View style={styles.topBarSide}>
+          <Pressable style={styles.topIconBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={Colors.text} />
+          </Pressable>
           <Pressable
-            style={[styles.iconBtn, sortBy === "favorites" && styles.iconBtnActive]}
+            style={[styles.topIconBtn, sortBy === "favorites" && { borderColor: "#E53E3E" }]}
             onPress={() => { setSortBy((s) => s === "name" ? "favorites" : "name"); Haptics.selectionAsync(); }}
           >
-            <Ionicons name={sortBy === "favorites" ? "heart" : "heart-outline"} size={16} color={sortBy === "favorites" ? Colors.danger : Colors.textMuted} />
+            <Ionicons name={sortBy === "favorites" ? "heart" : "heart-outline"} size={18} color={sortBy === "favorites" ? "#E53E3E" : Colors.textMuted} />
           </Pressable>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => { setViewMode((v) => v === "grid" ? "list" : "grid"); Haptics.selectionAsync(); }}
-          >
-            <Ionicons name={viewMode === "grid" ? "list" : "grid"} size={16} color={Colors.textMuted} />
+        </View>
+
+        {/* Center: category selector */}
+        <Pressable style={styles.topBarCenter} onPress={() => { if (isMobile) { setShowCategoryModal(true); Haptics.selectionAsync(); } }}>
+          <Text style={styles.topBarCategoryText} numberOfLines={1}>{selectedLabel.toUpperCase()}</Text>
+          {isMobile && <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} style={{ marginLeft: 4 }} />}
+          {filtered.length > 0 && (
+            <View style={styles.topBarCountBadge}>
+              <Text style={styles.topBarCountText}>{filtered.length}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* Right actions */}
+        <View style={styles.topBarSide}>
+          <Pressable style={styles.topIconBtn} onPress={() => { setViewMode((v) => v === "grid" ? "list" : "grid"); Haptics.selectionAsync(); }}>
+            <Ionicons name={viewMode === "grid" ? "list" : "grid"} size={18} color={Colors.textMuted} />
           </Pressable>
           {!isMobile && (
-            <Pressable style={styles.iconBtn} onPress={() => { router.push("/epg"); Haptics.selectionAsync(); }}>
-              <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+            <Pressable style={styles.topIconBtn} onPress={() => { router.push("/epg"); Haptics.selectionAsync(); }}>
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
             </Pressable>
           )}
         </View>
       </View>
 
-      {isMobile && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.mobileCategoryBar}
-        >
-          {allCategories.map((item) => {
-            const isActive = selectedCategory === item.categoryId;
-            return (
-              <Pressable
-                key={item.categoryId}
-                style={[styles.mobileCategoryChip, isActive && styles.mobileCategoryChipActive]}
-                onPress={() => { setSelectedCategory(item.categoryId); Haptics.selectionAsync(); }}
-              >
-                <Text style={[styles.mobileCategoryText, isActive && styles.mobileCategoryTextActive]} numberOfLines={1}>
-                  {item.categoryName}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
+      {/* SEARCH BAR */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={15} color={Colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search channels..."
+          placeholderTextColor={Colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch("")} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
 
+      {/* MAIN LAYOUT */}
       <View style={styles.mainLayout}>
+        {/* SIDEBAR */}
         {sidebarVisible && (
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, { width: SIDEBAR_W }]}>
+            {/* Sidebar search */}
+            <View style={styles.sidebarSearchWrap}>
+              <Ionicons name="search" size={13} color={Colors.textMuted} />
+              <TextInput
+                style={styles.sidebarSearchInput}
+                placeholder="Search categories..."
+                placeholderTextColor={Colors.textMuted}
+                value={sidebarSearch}
+                onChangeText={setSidebarSearch}
+                autoCapitalize="none"
+              />
+              {sidebarSearch.length > 0 && (
+                <Pressable onPress={() => setSidebarSearch("")} hitSlop={6}>
+                  <Ionicons name="close-circle" size={13} color={Colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+
             <FlatList
-              data={allCategories}
+              data={filteredSidebarCategories}
               keyExtractor={(c) => c.categoryId}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.sidebarList}
-              renderItem={({ item }) => {
+              renderItem={({ item, index }) => {
                 const isActive = selectedCategory === item.categoryId;
+                const count = item.categoryId === "all"
+                  ? channels.length
+                  : item.categoryId === "favorites"
+                  ? channels.filter((ch) => isFavorite("channels", ch.streamId)).length
+                  : (channelCountByCategory[item.categoryId] || 0);
+                const displayIndex = item.categoryId === "all" ? null : item.categoryId === "favorites" ? null : index - 1;
                 return (
                   <Pressable
                     style={[styles.sidebarItem, isActive && styles.sidebarItemActive]}
                     onPress={() => { setSelectedCategory(item.categoryId); Haptics.selectionAsync(); }}
                   >
                     {isActive && <View style={styles.sidebarActiveBar} />}
-                    <Ionicons
-                      name={item.categoryId === "favorites" ? (isActive ? "heart" : "heart-outline") : isActive ? "folder" : "folder-outline"}
-                      size={13}
-                      color={isActive ? Colors.accent : Colors.textMuted}
-                    />
-                    <Text style={[styles.sidebarLabel, isActive && styles.sidebarLabelActive]} numberOfLines={1}>
+                    {displayIndex !== null && (
+                      <Text style={[styles.sidebarNum, isActive && styles.sidebarNumActive]}>
+                        {String(displayIndex).padStart(2, "0")}
+                      </Text>
+                    )}
+                    <Text style={[styles.sidebarLabel, isActive && styles.sidebarLabelActive, displayIndex === null && { paddingLeft: 2 }]} numberOfLines={1}>
                       {item.categoryName}
                     </Text>
+                    {count > 0 && (
+                      <Text style={[styles.sidebarCount, isActive && styles.sidebarCountActive]}>
+                        {count}
+                      </Text>
+                    )}
                   </Pressable>
                 );
               }}
@@ -242,6 +248,7 @@ export default function LiveTVScreen() {
           </View>
         )}
 
+        {/* CHANNEL CONTENT */}
         <View style={styles.contentArea}>
           {channels.length === 0 && (loading || loginType) ? (
             <View style={styles.emptyState}>
@@ -269,11 +276,11 @@ export default function LiveTVScreen() {
               columnWrapperStyle={styles.gridRow}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
-                <ChannelGridCard
+                <ChannelTile
                   channel={item}
-                  cardSize={cardSize}
-                  onPress={() => openChannel(item)}
+                  size={cardSize}
                   isFav={isFavorite("channels", item.streamId)}
+                  onPress={() => openChannel(item)}
                   onToggleFav={() => { toggleFavorite("channels", item.streamId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 />
               )}
@@ -288,8 +295,8 @@ export default function LiveTVScreen() {
               renderItem={({ item }) => (
                 <ChannelListRow
                   channel={item}
-                  onPress={() => openChannel(item)}
                   isFav={isFavorite("channels", item.streamId)}
+                  onPress={() => openChannel(item)}
                   onToggleFav={() => { toggleFavorite("channels", item.streamId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 />
               )}
@@ -297,295 +304,351 @@ export default function LiveTVScreen() {
           )}
         </View>
       </View>
+
+      {/* Mobile category modal */}
+      <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCategoryModal(false)} />
+          <View style={styles.categorySheet}>
+            <View style={styles.categorySheetHandle} />
+            <Text style={styles.categorySheetTitle}>Select Category</Text>
+            <FlatList
+              data={allCategories}
+              keyExtractor={(c) => c.categoryId}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: bottomPadding + 20 }}
+              renderItem={({ item, index }) => {
+                const isActive = selectedCategory === item.categoryId;
+                const count = item.categoryId === "all"
+                  ? channels.length
+                  : item.categoryId === "favorites"
+                  ? channels.filter((ch) => isFavorite("channels", ch.streamId)).length
+                  : (channelCountByCategory[item.categoryId] || 0);
+                return (
+                  <Pressable
+                    style={[styles.sheetItem, isActive && styles.sheetItemActive]}
+                    onPress={() => selectCategory(item.categoryId)}
+                  >
+                    <Text style={[styles.sheetItemText, isActive && styles.sheetItemTextActive]} numberOfLines={1}>
+                      {item.categoryName}
+                    </Text>
+                    {count > 0 && (
+                      <Text style={[styles.sheetItemCount, isActive && { color: "#E53E3E" }]}>{count}</Text>
+                    )}
+                    {isActive && <Ionicons name="checkmark" size={16} color="#E53E3E" style={{ marginLeft: 4 }} />}
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function ChannelGridCard({ channel, cardSize, onPress, isFav, onToggleFav }: {
-  channel: Channel; cardSize: number; onPress: () => void; isFav: boolean; onToggleFav: () => void;
+function ChannelTile({ channel, size, isFav, onPress, onToggleFav }: {
+  channel: Channel; size: number; isFav: boolean; onPress: () => void; onToggleFav: () => void;
 }) {
-  const quality = getQualityTag(channel.name);
-  const qColor = quality ? getQualityColor(quality) : Colors.textMuted;
-  const logoSize = Math.max(30, Math.min(cardSize * 0.54, 62));
-  const fontSize = cardSize < 80 ? 8 : cardSize < 100 ? 9 : 11;
+  const logoSize = Math.round(size * 0.72);
+  const fontSize = size < 80 ? 8 : size < 100 ? 9 : size < 130 ? 10 : 11;
 
   return (
-    <Pressable style={({ pressed }) => [styles.gridCard, { width: cardSize }, pressed && styles.cardPressed]} onPress={onPress}>
-      <LinearGradient
-        colors={["#1C1C2E", "#12121C"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.gridLogoArea, { width: logoSize + 16, height: logoSize + 8 }]}>
+    <Pressable
+      style={({ pressed }) => [styles.tile, { width: size }, pressed && styles.tilePressed]}
+      onPress={onPress}
+    >
+      {/* Logo box */}
+      <View style={[styles.tileLogoBox, { width: size, height: size }]}>
         {channel.streamIcon ? (
-          <Image source={{ uri: channel.streamIcon }} style={{ width: logoSize, height: logoSize }} resizeMode="contain" />
+          <Image
+            source={{ uri: channel.streamIcon }}
+            style={{ width: logoSize, height: logoSize }}
+            resizeMode="contain"
+          />
         ) : (
           <Ionicons name="tv" size={logoSize * 0.55} color={Colors.textMuted} />
         )}
-      </View>
-      <Text style={[styles.gridCardName, { fontSize }]} numberOfLines={2}>{channel.name}</Text>
-      <View style={styles.gridCardFooter}>
-        {quality && (
-          <View style={[styles.qualityPill, { backgroundColor: qColor + "22", borderColor: qColor + "50" }]}>
-            <Text style={[styles.qualityPillText, { color: qColor }]}>{quality}</Text>
-          </View>
+        {/* Fav button */}
+        {isFav && (
+          <Pressable style={styles.tileFavBtn} onPress={onToggleFav} hitSlop={6}>
+            <Ionicons name="heart" size={11} color="#E53E3E" />
+          </Pressable>
         )}
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Ionicons name={isFav ? "heart" : "heart-outline"} size={12} color={isFav ? Colors.danger : Colors.textMuted} />
-        </Pressable>
-        <View style={styles.playBtnSmall}>
-          <Ionicons name="play" size={9} color="#fff" />
-        </View>
       </View>
+      {/* Name below the logo box */}
+      <Text style={[styles.tileName, { fontSize, width: size }]} numberOfLines={2}>{channel.name}</Text>
     </Pressable>
   );
 }
 
-function ChannelListRow({ channel, onPress, isFav, onToggleFav }: {
-  channel: Channel; onPress: () => void; isFav: boolean; onToggleFav: () => void;
+function ChannelListRow({ channel, isFav, onPress, onToggleFav }: {
+  channel: Channel; isFav: boolean; onPress: () => void; onToggleFav: () => void;
 }) {
-  const quality = getQualityTag(channel.name);
-  const qColor = quality ? getQualityColor(quality) : Colors.textMuted;
-
   return (
-    <Pressable style={({ pressed }) => [styles.listRow, pressed && styles.cardPressed]} onPress={onPress}>
-      <View style={styles.listLogoWrap}>
+    <Pressable style={({ pressed }) => [styles.listRow, pressed && styles.tilePressed]} onPress={onPress}>
+      <View style={styles.listLogoBox}>
         {channel.streamIcon ? (
-          <Image source={{ uri: channel.streamIcon }} style={styles.listLogoImg} resizeMode="contain" />
+          <Image source={{ uri: channel.streamIcon }} style={{ width: 48, height: 36 }} resizeMode="contain" />
         ) : (
           <Ionicons name="tv" size={22} color={Colors.textMuted} />
         )}
-        <View style={styles.liveDot} />
       </View>
       <View style={styles.listInfo}>
         <Text style={styles.listName} numberOfLines={1}>{channel.name}</Text>
-        {channel.epgChannelId ? (
-          <Text style={styles.listEpg} numberOfLines={1}>{channel.epgChannelId}</Text>
-        ) : null}
+        {channel.epgChannelId ? <Text style={styles.listEpg} numberOfLines={1}>{channel.epgChannelId}</Text> : null}
       </View>
-      {quality && (
-        <View style={[styles.qualityPill, { backgroundColor: qColor + "22", borderColor: qColor + "50" }]}>
-          <Text style={[styles.qualityPillText, { color: qColor }]}>{quality}</Text>
-        </View>
-      )}
-      <Pressable style={styles.favBtn} onPress={onToggleFav} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name={isFav ? "heart" : "heart-outline"} size={18} color={isFav ? Colors.danger : Colors.textMuted} />
+      <Pressable onPress={onToggleFav} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Ionicons name={isFav ? "heart" : "heart-outline"} size={18} color={isFav ? "#E53E3E" : Colors.textMuted} />
       </Pressable>
-      <LinearGradient colors={[Colors.gradient1, Colors.gradient2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.playBtn}>
+      <View style={styles.listPlayBtn}>
         <Ionicons name="play" size={14} color="#fff" />
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
+  container: { flex: 1, backgroundColor: "#0D0D0D" },
+
+  /* TOP BAR */
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.surface,
-    gap: 8,
-    minHeight: 48,
+    borderBottomColor: "#1E1E1E",
+    backgroundColor: "#111111",
+    minHeight: 50,
   },
-  topBarMobile: { paddingVertical: 6, flexWrap: "wrap" },
-  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  topBarRight: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
-  timeBlock: { gap: 1 },
-  timeText: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.text },
-  dateText: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
-  categoryLabel: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: Colors.card,
-    borderRadius: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    maxWidth: 180,
-  },
-  categoryLabelText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: Colors.text, flexShrink: 1 },
-  channelCount: {
-    fontSize: 9,
+  topBarSide: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 72 },
+  topBarCenter: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  topBarCategoryText: {
+    fontSize: 13,
     fontFamily: "Inter_700Bold",
-    color: Colors.accent,
-    backgroundColor: Colors.accentSoft,
-    borderRadius: 8,
-    paddingHorizontal: 5,
+    color: Colors.text,
+    letterSpacing: 0.8,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  topBarCountBadge: {
+    backgroundColor: "#E53E3E",
+    borderRadius: 10,
+    paddingHorizontal: 6,
     paddingVertical: 1,
-  },
-  searchBox: {
-    flexDirection: "row",
+    minWidth: 24,
     alignItems: "center",
-    backgroundColor: Colors.card,
-    borderRadius: 9,
-    paddingHorizontal: 9,
-    height: 36,
-    gap: 5,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    minWidth: 120,
   },
-  searchInput: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.text },
-  iconBtn: {
+  topBarCountText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
+  topIconBtn: {
     width: 36,
     height: 36,
-    borderRadius: 9,
-    backgroundColor: Colors.card,
+    borderRadius: 8,
+    backgroundColor: "#1A1A1A",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#282828",
   },
-  iconBtnActive: { borderColor: Colors.danger, backgroundColor: Colors.danger + "18" },
-  mobileCategoryBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
+
+  /* SEARCH BAR */
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#161616",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: "#1E1E1E",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    gap: 8,
+    height: 44,
   },
-  mobileCategoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    minHeight: 32,
-    justifyContent: "center",
-  },
-  mobileCategoryChipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
-  mobileCategoryText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
-  mobileCategoryTextActive: { color: Colors.accent },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.text },
+
+  /* MAIN LAYOUT */
   mainLayout: { flex: 1, flexDirection: "row" },
+
+  /* SIDEBAR */
   sidebar: {
-    width: 160,
-    backgroundColor: Colors.surface,
+    backgroundColor: "#111111",
     borderRightWidth: 1,
-    borderRightColor: Colors.border,
+    borderRightColor: "#1E1E1E",
   },
-  sidebarList: { paddingVertical: 6 },
+  sidebarSearchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E1E1E",
+    backgroundColor: "#161616",
+  },
+  sidebarSearchInput: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: Colors.text,
+    height: 24,
+  },
+  sidebarList: { paddingBottom: 12 },
   sidebarItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#181818",
+    minHeight: 44,
     position: "relative",
     overflow: "hidden",
-    minHeight: 44,
   },
-  sidebarItemActive: { backgroundColor: Colors.accentSoft },
+  sidebarItemActive: { backgroundColor: "#E53E3E" },
   sidebarActiveBar: {
     position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
+    left: 0, top: 0, bottom: 0,
     width: 3,
-    backgroundColor: Colors.accent,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
+    backgroundColor: "#fff",
   },
-  sidebarLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, flex: 1 },
-  sidebarLabelActive: { color: Colors.text, fontFamily: "Inter_600SemiBold" },
-  contentArea: { flex: 1 },
-  gridList: { padding: 10 },
-  gridRow: { gap: 8, marginBottom: 8, justifyContent: "flex-start" },
-  gridCard: {
-    borderRadius: 12,
-    padding: 8,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    gap: 5,
-    minHeight: 88,
-    overflow: "hidden",
-  },
-  cardPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
-  gridLogoArea: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  gridCardName: { fontFamily: "Inter_500Medium", color: Colors.text, textAlign: "center", lineHeight: 14, width: "100%" },
-  gridCardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    width: "100%",
-  },
-  qualityPill: {
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderWidth: 1,
-  },
-  qualityPillText: { fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
-  playBtnSmall: {
+  sidebarNum: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textMuted,
     width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.accent,
+    textAlign: "right",
+    marginRight: 6,
+  },
+  sidebarNumActive: { color: "rgba(255,255,255,0.7)" },
+  sidebarLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  sidebarLabelActive: { color: "#fff", fontFamily: "Inter_700Bold" },
+  sidebarCount: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textMuted,
+    minWidth: 20,
+    textAlign: "right",
+  },
+  sidebarCountActive: { color: "rgba(255,255,255,0.8)" },
+
+  /* CONTENT */
+  contentArea: { flex: 1, backgroundColor: "#0D0D0D" },
+  gridList: { padding: GRID_PADDING },
+  gridRow: { gap: CARD_GAP, marginBottom: CARD_GAP, justifyContent: "flex-start" },
+
+  /* CHANNEL TILE */
+  tile: { alignItems: "center" },
+  tilePressed: { opacity: 0.7, transform: [{ scale: 0.94 }] },
+  tileLogoBox: {
+    backgroundColor: "#181818",
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#252525",
+    overflow: "hidden",
+    position: "relative",
   },
-  listContent: { padding: 10, gap: 6 },
+  tileFavBtn: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 8,
+    padding: 3,
+  },
+  tileName: {
+    fontFamily: "Inter_400Regular",
+    color: "#BBBBBB",
+    textAlign: "center",
+    lineHeight: 13,
+    marginTop: 4,
+  },
+
+  /* LIST VIEW */
+  listContent: { padding: 8, gap: 4 },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 10,
-    gap: 10,
+    backgroundColor: "#181818",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 12,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#252525",
     minHeight: 60,
   },
-  listLogoWrap: {
-    width: 52,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: Colors.card,
+  listLogoBox: {
+    width: 60,
+    height: 44,
+    borderRadius: 6,
+    backgroundColor: "#111",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    position: "relative",
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  listLogoImg: { width: 44, height: 32 },
-  liveDot: {
-    position: "absolute",
-    bottom: 3,
-    right: 3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.success,
-    borderWidth: 1,
-    borderColor: Colors.surface,
+    borderColor: "#252525",
   },
   listInfo: { flex: 1 },
   listName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.text },
   listEpg: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
-  favBtn: { padding: 4, minHeight: 44, justifyContent: "center" },
-  playBtn: {
+  listPlayBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
+    backgroundColor: "#E53E3E",
     alignItems: "center",
     justifyContent: "center",
   },
+
+  /* MOBILE MODAL */
+  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
+  categorySheet: {
+    backgroundColor: "#141414",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "75%",
+    borderWidth: 1,
+    borderColor: "#252525",
+    paddingTop: 8,
+  },
+  categorySheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#333",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  categorySheetTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#252525",
+  },
+  sheetItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E1E1E",
+  },
+  sheetItemActive: { backgroundColor: "#1A0505" },
+  sheetItemText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  sheetItemTextActive: { color: "#E53E3E", fontFamily: "Inter_700Bold" },
+  sheetItemCount: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textMuted },
+
+  /* EMPTY */
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 60 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: Colors.text },
   emptySubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
