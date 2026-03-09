@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   announcementText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
-    whiteSpace: "nowrap" as any,
+    flexShrink: 1,
   },
   bannerWrap: { marginBottom: 16 },
   bannerCard: {

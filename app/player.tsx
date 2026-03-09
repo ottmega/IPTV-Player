@@ -58,9 +58,9 @@ export default function PlayerScreen() {
   const [zapBanner, setZapBanner] = useState<string | null>(null);
 
   const videoRef = useRef<Video>(null);
-  const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
-  const zapTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const controlsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const zapTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const zapAnim = useRef(new Animated.Value(0)).current;
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;

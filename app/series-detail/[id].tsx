@@ -265,7 +265,7 @@ function EpisodeRow({
   ep: Episode;
   selectedSeason: string | null;
   seriesItem: { name: string; cover?: string };
-  getStreamUrl: (type: string, id: string, ext?: string) => string;
+  getStreamUrl: (type: "live" | "series" | "movie", id: string, ext?: string) => string;
   addToHistory: (item: WatchHistoryItem) => void;
 }) {
   return (
@@ -278,7 +278,7 @@ function EpisodeRow({
           id: ep.id,
           type: "episode",
           name: `${seriesItem.name} S${selectedSeason}E${ep.episodeNum}`,
-          thumbnail: ep.info?.cover || seriesItem.cover,
+          thumbnail: ep.info?.cover || seriesItem.cover || "",
           seriesName: seriesItem.name,
           timestamp: Date.now(),
           url,
