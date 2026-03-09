@@ -1,13 +1,20 @@
 {
-  "totalOpens": 15,
+  "totalOpens": 16,
   "uniqueDevices": 2,
   "platforms": {
-    "web": 15
+    "web": 16
   },
   "versions": {
-    "1.0.0": 15
+    "1.0.0": 16
   },
   "recentEvents": [
+    {
+      "type": "app_open",
+      "platform": "web",
+      "version": "1.0.0",
+      "ip": "34.148.61.58",
+      "ts": "2026-03-09T08:37:59.870Z"
+    },
     {
       "type": "app_open",
       "platform": "web",

@@ -13,6 +13,7 @@ import {
   PanResponder,
   Animated,
 } from "react-native";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -96,6 +97,17 @@ export default function PlayerScreen() {
       }
     },
   });
+
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    }
+    return () => {
+      if (Platform.OS !== "web") {
+        ScreenOrientation.unlockAsync();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     resetControlsTimer();
