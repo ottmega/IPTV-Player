@@ -44,7 +44,7 @@ export default function SeriesScreen() {
 
   const isAndroid = Platform.OS === "android";
   const topPadding = isWeb ? 67 : insets.top;
-  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
+  const listBottomPad = isWeb ? 50 : !isPortrait ? insets.bottom + 8 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
   const leftPadding = isWeb ? 16 : Math.max(12, insets.left + 8);
   const rightPadding = isWeb ? 16 : Math.max(12, insets.right + 8);
 

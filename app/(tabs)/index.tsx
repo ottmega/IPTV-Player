@@ -104,7 +104,7 @@ export default function HomeScreen() {
   const leftPadding = isWeb ? 24 : insets.left + 16;
   const rightPadding = isWeb ? 24 : insets.right + 16;
   const bottomPadding = isWeb ? 34 : insets.bottom;
-  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
+  const listBottomPad = isWeb ? 50 : !isPortrait ? insets.bottom + 8 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
 
   const themeColor = config.themeColor || Colors.accent;
 

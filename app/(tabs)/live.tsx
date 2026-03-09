@@ -73,7 +73,7 @@ export default function LiveTVScreen() {
   const sidebarVisible = !isMobile;
 
   const topPadding = isWeb ? 67 : insets.top;
-  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
+  const listBottomPad = isWeb ? 50 : !isPortrait ? insets.bottom + 8 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
   const leftPadding = isWeb ? 0 : insets.left;
   const rightPadding = isWeb ? 0 : insets.right;
 

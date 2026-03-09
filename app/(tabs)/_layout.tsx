@@ -2,7 +2,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,6 +40,8 @@ function ClassicTabLayout() {
   const isWeb = Platform.OS === "web";
   const isAndroid = Platform.OS === "android";
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = !isWeb && width > height;
 
   return (
     <Tabs
@@ -48,13 +50,14 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
+          display: isLandscape ? "none" : "flex",
           ...(isIOS ? { position: "absolute" } : {}),
           backgroundColor: isIOS ? "transparent" : Colors.surface,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
-          ...(isAndroid ? { height: 56 + insets.bottom, paddingBottom: insets.bottom } : {}),
+          ...(isAndroid && !isLandscape ? { height: 56 + insets.bottom, paddingBottom: insets.bottom } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
