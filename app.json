@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.ottmega.iptv",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#0A0A12",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

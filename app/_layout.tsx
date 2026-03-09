@@ -66,7 +66,7 @@ export default function RootLayout() {
           <IPTVProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
-                <StatusBar style="light" />
+                <StatusBar style="light" translucent backgroundColor="transparent" />
                 <RootLayoutNav />
                 <ForceUpdateModal />
               </KeyboardProvider>

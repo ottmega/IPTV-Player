@@ -99,10 +99,12 @@ export default function HomeScreen() {
   const bp = getBreakpoint(width);
   const isTablet = bp === "tablet";
 
+  const isAndroid = Platform.OS === "android";
   const topPadding = isWeb ? 67 : insets.top;
   const leftPadding = isWeb ? 24 : insets.left + 16;
   const rightPadding = isWeb ? 24 : insets.right + 16;
   const bottomPadding = isWeb ? 34 : insets.bottom;
+  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
 
   const themeColor = config.themeColor || Colors.accent;
 
@@ -179,7 +181,7 @@ export default function HomeScreen() {
           {
             paddingLeft: leftPadding,
             paddingRight: rightPadding,
-            paddingBottom: bottomPadding + 90,
+            paddingBottom: listBottomPad,
           },
         ]}
       >

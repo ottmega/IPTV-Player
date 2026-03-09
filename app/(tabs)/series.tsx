@@ -42,8 +42,9 @@ export default function SeriesScreen() {
   const isPortrait = height > width;
   const isWeb = Platform.OS === "web";
 
+  const isAndroid = Platform.OS === "android";
   const topPadding = isWeb ? 67 : insets.top;
-  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
   const leftPadding = isWeb ? 16 : Math.max(12, insets.left + 8);
   const rightPadding = isWeb ? 16 : Math.max(12, insets.right + 8);
 
@@ -129,7 +130,7 @@ export default function SeriesScreen() {
           data={filtered}
           keyExtractor={(s) => s.seriesId}
           numColumns={numCols}
-          contentContainerStyle={[styles.grid, { paddingBottom: bottomPadding + 90 }]}
+          contentContainerStyle={[styles.grid, { paddingBottom: listBottomPad }]}
           showsVerticalScrollIndicator={false}
           columnWrapperStyle={{ gap: innerGap, marginBottom: innerGap }}
           renderItem={({ item }) => (

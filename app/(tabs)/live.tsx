@@ -60,8 +60,9 @@ export default function LiveTVScreen() {
   const isMobile = width < 680;
   const sidebarVisible = !isMobile;
 
+  const isAndroid = Platform.OS === "android";
   const topPadding = isWeb ? 67 : insets.top;
-  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const listBottomPad = isWeb ? 50 : isAndroid ? insets.bottom + 16 : insets.bottom + 90;
   const leftPadding = isWeb ? 0 : insets.left;
   const rightPadding = isWeb ? 0 : insets.right;
 
@@ -272,7 +273,7 @@ export default function LiveTVScreen() {
               data={filtered}
               keyExtractor={(c) => c.streamId}
               numColumns={numCols}
-              contentContainerStyle={[styles.gridList, { paddingBottom: bottomPadding + 90 }]}
+              contentContainerStyle={[styles.gridList, { paddingBottom: listBottomPad }]}
               columnWrapperStyle={styles.gridRow}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
@@ -290,7 +291,7 @@ export default function LiveTVScreen() {
               key="list"
               data={filtered}
               keyExtractor={(c) => c.streamId}
-              contentContainerStyle={[styles.listContent, { paddingBottom: bottomPadding + 90 }]}
+              contentContainerStyle={[styles.listContent, { paddingBottom: listBottomPad }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <ChannelListRow
@@ -316,7 +317,7 @@ export default function LiveTVScreen() {
               data={allCategories}
               keyExtractor={(c) => c.categoryId}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: bottomPadding + 20 }}
+              contentContainerStyle={{ paddingBottom: listBottomPad }}
               renderItem={({ item, index }) => {
                 const isActive = selectedCategory === item.categoryId;
                 const count = item.categoryId === "all"

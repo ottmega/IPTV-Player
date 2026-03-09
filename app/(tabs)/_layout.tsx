@@ -5,6 +5,7 @@ import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
@@ -37,6 +38,8 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const isAndroid = Platform.OS === "android";
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -45,12 +48,13 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          position: "absolute",
+          ...(isIOS ? { position: "absolute" } : {}),
           backgroundColor: isIOS ? "transparent" : Colors.surface,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
+          ...(isAndroid ? { height: 56 + insets.bottom, paddingBottom: insets.bottom } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
