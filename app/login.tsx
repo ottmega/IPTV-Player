@@ -62,7 +62,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web") {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      ScreenOrientation.unlockAsync().catch(() => {});
     }
   }, []);
 

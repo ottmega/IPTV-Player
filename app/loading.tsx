@@ -87,7 +87,7 @@ export default function LoadingScreen() {
       setDone(true);
       setTimeout(async () => {
         if (Platform.OS !== "web") {
-          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+          await ScreenOrientation.unlockAsync().catch(() => {});
         }
         router.replace("/(tabs)");
       }, 800);
