@@ -68,12 +68,21 @@ export default function PlayerScreen() {
   const [bufferMode, setBufferMode] = useState<BufferMode>("medium");
   const [decoderMode, setDecoderMode] = useState<DecoderMode>("auto");
   const [audioDelay, setAudioDelay] = useState(0);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [audioRetryCount, setAudioRetryCount] = useState(0);
 
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const zapTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const audioRecoveryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const zapAnim = useRef(new Animated.Value(0)).current;
+
+  const playbackStarted = useRef(false);
+  const isPausedByUser = useRef(false);
+  const currentUrlRef = useRef(decodeURIComponent(params.url));
+  const audioRetryCountRef = useRef(0);
+  const openInVLCRef = useRef<() => void>(() => {});
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
   const isLoading = !status?.isLoaded || reconnecting;
@@ -88,6 +97,51 @@ export default function PlayerScreen() {
 
   const currentChannelIdx = channels.findIndex((c) => c.streamId === currentStreamId);
 
+  useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
+  useEffect(() => { audioRetryCountRef.current = audioRetryCount; }, [audioRetryCount]);
+
+  const handleStatusUpdate = useCallback((newStatus: AVPlaybackStatus) => {
+    setStatus(newStatus);
+    if (!newStatus.isLoaded) return;
+    if (newStatus.isPlaying && !playbackStarted.current) {
+      playbackStarted.current = true;
+      if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
+      audioRecoveryTimer.current = setTimeout(async () => {
+        try {
+          const fresh = await videoRef.current?.getStatusAsync();
+          if (!fresh?.isLoaded) return;
+          if (!fresh.isPlaying && !isPausedByUser.current) {
+            const retries = audioRetryCountRef.current;
+            if (retries < 2) {
+              playbackStarted.current = false;
+              setAudioRetryCount((c) => c + 1);
+              await videoRef.current?.stopAsync().catch(() => {});
+              await videoRef.current?.loadAsync(
+                { uri: currentUrlRef.current },
+                { shouldPlay: true }
+              ).catch(() => {});
+            } else {
+              Alert.alert(
+                "Audio Issue Detected",
+                "Stream may have an unsupported audio codec. Try opening in VLC.",
+                [
+                  { text: "Open in VLC", onPress: () => openInVLCRef.current() },
+                  { text: "Reload", onPress: async () => {
+                    playbackStarted.current = false;
+                    setAudioRetryCount(0);
+                    await videoRef.current?.stopAsync().catch(() => {});
+                    await videoRef.current?.loadAsync({ uri: currentUrlRef.current }, { shouldPlay: true }).catch(() => {});
+                  }},
+                  { text: "Dismiss" },
+                ]
+              );
+            }
+          }
+        } catch {}
+      }, 3000);
+    }
+  }, []);
+
   const showZapBanner = (channelName: string) => {
     setZapBanner(channelName);
     Animated.sequence([
@@ -99,13 +153,37 @@ export default function PlayerScreen() {
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dx) < Math.abs(g.dy),
+    onMoveShouldSetPanResponder: (_, g) => {
+      const absDx = Math.abs(g.dx);
+      const absDy = Math.abs(g.dy);
+      return absDx > 8 || absDy > 8;
+    },
     onPanResponderRelease: (_, g) => {
-      if (isLive && channels.length > 1 && Math.abs(g.dy) > 50 && Math.abs(g.dx) < 80) {
-        if (g.dy < -50) switchChannel("next");
-        else switchChannel("prev");
-      } else if (Math.abs(g.dx) < 5 && Math.abs(g.dy) < 5) {
+      const absDx = Math.abs(g.dx);
+      const absDy = Math.abs(g.dy);
+      const isTap = absDx < 8 && absDy < 8;
+
+      if (isTap) {
         handleTap();
+        return;
+      }
+
+      if (isLive && channels.length > 1) {
+        if (absDy > 50 && absDx < absDy) {
+          if (g.dy < -50) switchChannel("next");
+          else switchChannel("prev");
+          return;
+        }
+        if (absDx > 80 && absDy < absDx) {
+          if (g.dx < -80) switchChannel("next");
+          else switchChannel("prev");
+          return;
+        }
+      }
+
+      if (!isLive && absDx > 80 && absDy < absDx) {
+        const skipSeconds = g.dx < 0 ? -15 : 15;
+        seek(skipSeconds);
       }
     },
   });
@@ -127,6 +205,7 @@ export default function PlayerScreen() {
       if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
       if (zapTimeout.current) clearTimeout(zapTimeout.current);
+      if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
     };
   }, []);
 
@@ -146,7 +225,7 @@ export default function PlayerScreen() {
 
   const openInVLC = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const vlcUrl = `vlc://${currentUrl}`;
+    const vlcUrl = `vlc://${currentUrlRef.current}`;
     const supported = await Linking.canOpenURL(vlcUrl).catch(() => false);
     if (supported) {
       await Linking.openURL(vlcUrl);
@@ -157,7 +236,9 @@ export default function PlayerScreen() {
         [{ text: "OK" }]
       );
     }
-  }, [currentUrl]);
+  }, []);
+
+  useEffect(() => { openInVLCRef.current = openInVLC; }, [openInVLC]);
 
   const handleError = useCallback(() => {
     if (reconnectCount >= 3) {
@@ -186,6 +267,11 @@ export default function PlayerScreen() {
     resetControlsTimer();
     setReconnecting(true);
     setReconnectCount(0);
+    setAudioRetryCount(0);
+    playbackStarted.current = false;
+    isPausedByUser.current = false;
+    audioRetryCountRef.current = 0;
+    if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
     try {
       await videoRef.current?.stopAsync();
       await videoRef.current?.loadAsync({ uri: currentUrl }, { shouldPlay: true, rate: currentSpeed });
@@ -202,7 +288,13 @@ export default function PlayerScreen() {
   const togglePlay = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     resetControlsTimer();
-    isPlaying ? await videoRef.current?.pauseAsync() : await videoRef.current?.playAsync();
+    if (isPlaying) {
+      isPausedByUser.current = true;
+      await videoRef.current?.pauseAsync();
+    } else {
+      isPausedByUser.current = false;
+      await videoRef.current?.playAsync();
+    }
   };
 
   const seek = async (delta: number) => {
@@ -226,24 +318,37 @@ export default function PlayerScreen() {
     await videoRef.current?.setRateAsync(SPEEDS[idx], true);
   };
 
-  const switchChannel = async (direction: "next" | "prev") => {
+  const switchChannel = useCallback(async (direction: "next" | "prev") => {
     if (channels.length === 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     resetControlsTimer();
-    let nextIdx = direction === "next"
-      ? (currentChannelIdx + 1) % channels.length
-      : (currentChannelIdx - 1 + channels.length) % channels.length;
+
+    const idx = channels.findIndex((c) => c.streamId === currentStreamId);
+    const nextIdx = direction === "next"
+      ? (idx + 1) % channels.length
+      : (idx - 1 + channels.length) % channels.length;
     const nextChannel = channels[nextIdx];
     const nextUrl = nextChannel.url || getStreamUrl("live", nextChannel.streamId, "ts");
+
     setCurrentTitle(nextChannel.name);
     setCurrentStreamId(nextChannel.streamId);
     setCurrentUrl(nextUrl);
     setReconnectCount(0);
+    setAudioRetryCount(0);
+    setIsSwitching(true);
+    playbackStarted.current = false;
+    isPausedByUser.current = false;
+    audioRetryCountRef.current = 0;
+    if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
+
     showZapBanner(nextChannel.name);
+
     try {
       await videoRef.current?.loadAsync({ uri: nextUrl }, { shouldPlay: true });
     } catch {}
-  };
+
+    setIsSwitching(false);
+  }, [channels, currentStreamId, getStreamUrl]);
 
   const formatTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -299,17 +404,26 @@ export default function PlayerScreen() {
           resizeMode={resizeMode}
           shouldPlay
           useNativeControls={false}
-          onPlaybackStatusUpdate={setStatus}
+          onPlaybackStatusUpdate={handleStatusUpdate}
           onError={handleError}
           rate={currentSpeed}
         />
 
-        {isLoading && (
+        {(isLoading || isSwitching) && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator color={Colors.accent} size="large" />
             <Text style={styles.bufferingText}>
-              {reconnecting ? `Reconnecting... (${reconnectCount + 1}/3)` : "Loading stream..."}
+              {isSwitching
+                ? `Loading ${currentTitle}...`
+                : reconnecting
+                  ? `Reconnecting... (${reconnectCount + 1}/3)`
+                  : "Loading stream..."}
             </Text>
+            {audioRetryCount > 0 && (
+              <Text style={styles.audioRetryText}>
+                Audio recovery attempt {audioRetryCount}/2...
+              </Text>
+            )}
           </View>
         )}
 
@@ -482,7 +596,8 @@ export default function PlayerScreen() {
             {isLive && (
               <View style={[styles.swipeHint, { bottom: bottomPad + 42 }]}>
                 <Ionicons name="chevron-up" size={12} color="rgba(255,255,255,0.35)" />
-                <Text style={styles.swipeHintText}>Swipe to zap</Text>
+                <Text style={styles.swipeHintText}>swipe up/down</Text>
+                <Text style={styles.swipeHintText}>or left/right</Text>
                 <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.35)" />
               </View>
             )}
@@ -492,7 +607,14 @@ export default function PlayerScreen() {
         {zapBanner && (
           <Animated.View style={[styles.zapBanner, { opacity: zapAnim }]}>
             <Ionicons name="tv" size={16} color="#fff" />
-            <Text style={styles.zapText} numberOfLines={1}>{zapBanner}</Text>
+            <View>
+              <Text style={styles.zapText} numberOfLines={1}>{zapBanner}</Text>
+              {channels.length > 1 && currentChannelIdx >= 0 && (
+                <Text style={styles.zapSubText}>
+                  CH {currentChannelIdx + 1} / {channels.length}  •  swipe to change
+                </Text>
+              )}
+            </View>
           </Animated.View>
         )}
       </View>
@@ -768,7 +890,9 @@ const styles = StyleSheet.create({
     gap: 10,
     maxWidth: 280,
   },
-  zapText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold", flex: 1 },
+  zapText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  zapSubText: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  audioRetryText: { color: Colors.accent, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
   swipeHint: {
     position: "absolute",
     right: 14,
