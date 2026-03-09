@@ -41,7 +41,7 @@ export default function SearchScreen() {
 
     channels
       .filter((c) => c.name.toLowerCase().includes(q))
-      .slice(0, 5)
+      .slice(0, 20)
       .forEach((c) =>
         r.push({ id: c.streamId, type: "channel", name: c.name, thumbnail: c.streamIcon })
       );
@@ -81,7 +81,7 @@ export default function SearchScreen() {
       const channel = channels.find((c) => c.streamId === item.id);
       const url = channel?.url || getStreamUrl("live", item.id);
       addToHistory({ id: item.id, type: "channel", name: item.name, thumbnail: item.thumbnail, timestamp: Date.now(), url });
-      router.push({ pathname: "/player", params: { url, title: item.name, type: "live" } });
+      router.push({ pathname: "/player", params: { url, title: item.name, type: "live", streamId: item.id } });
     } else if (item.type === "movie") {
       router.push({ pathname: "/movie/[id]", params: { id: item.id } });
     } else {

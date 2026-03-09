@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -113,7 +114,7 @@ export default function MultiScreenScreen() {
                 </View>
                 <Pressable style={styles.slotExpandBtn} onPress={() => {
                   const url = slot.channel!.url || getStreamUrl("live", slot.channel!.streamId);
-                  router.push({ pathname: "/player", params: { url, title: slot.channel!.name, type: "live" } });
+                  router.push({ pathname: "/player", params: { url, title: slot.channel!.name, type: "live", streamId: slot.channel!.streamId } });
                 }}>
                   <Ionicons name="expand" size={14} color="rgba(255,255,255,0.7)" />
                 </Pressable>
@@ -136,9 +137,26 @@ export default function MultiScreenScreen() {
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Channel</Text>
-              <Pressable onPress={() => setPickerSlot(null)}>
+              <Pressable onPress={() => { setPickerSlot(null); setSearchQuery(""); }}>
                 <Ionicons name="close" size={24} color={Colors.text} />
               </Pressable>
+            </View>
+            <View style={styles.modalSearch}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search channels..."
+                placeholderTextColor={Colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </Pressable>
+              )}
             </View>
             {channels.length === 0 ? (
               <View style={styles.emptyPicker}>
@@ -349,6 +367,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Inter_700Bold",
     color: Colors.text,
+  },
+  modalSearch: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginVertical: 10,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.text,
+    paddingVertical: 0,
   },
   channelPickItem: {
     flexDirection: "row",
