@@ -1,0 +1,207 @@
+Update the Live TV section of the OTTMEGA IPTV application to follow a two-level navigation system similar to professional IPTV apps.
+
+The Live TV section must first display categories, and only after clicking a category should the channel list be shown.
+
+Use the provided screenshots as reference.
+
+REQUIRED FLOW
+
+When the user taps Live TV:
+
+Live TV
+↓
+Show categories list
+
+Example UI:
+
+All
+Recent Watch
+Favorites
+REAL 4K (2160P)
+ICC Men's T20 World Cup
+CRICKET
+SPORTS | MLS
+FOOTBALL
+SPORTS | RUGBY
+SPORTS | INDIA
+
+Each category should display:
+
+Category name
+Channel count
+Arrow icon
+CATEGORY SCREEN DESIGN
+
+Layout:
+
+Top Bar
+----------------------
+Live TV
+
+Categories List
+----------------------
+📁 REAL 4K (2160P)      35 >
+📁 CRICKET              63 >
+📁 SPORTS | MLS         49 >
+📁 FOOTBALL             31 >
+
+UI requirements:
+
+Folder icon on left
+Category name
+Channel count on right
+Arrow navigation icon
+Dark theme cards
+
+Scrollable list.
+
+CATEGORY CLICK BEHAVIOR
+
+When a category is tapped:
+
+Open category screen
+
+Example:
+
+REAL 4K (2160P)
+CHANNEL SCREEN DESIGN
+
+After opening category:
+
+Display channel list or grid.
+
+Example layout:
+
+Top bar
+-------------------------
+← REAL 4K (2160P)
+
+Channel Grid
+-------------------------
+[4K LOGO] UK SKY SPORTS 1
+[4K LOGO] UK SKY SPORTS 2
+[4K LOGO] TNT SPORTS
+
+Features:
+
+Search button
+Grid/List toggle
+Sort button
+
+Exactly like screenshots.
+
+CATEGORY DROPDOWN MENU
+
+Add dropdown category selector.
+
+When user taps category title:
+
+Show category overlay
+
+Example:
+
+All
+Recent Watch
+Favorites
+REAL 4K
+CRICKET
+SPORTS | MLS
+FOOTBALL
+
+Overlay style:
+
+Dark background
+Centered text
+Close button
+CHANNEL VIEW OPTIONS
+
+Add two layout modes.
+
+Grid view:
+
+channel logos
+4 columns
+
+List view:
+
+channel icon
+channel name
+
+User can toggle using icon.
+
+SORT OPTIONS
+
+Sorting options menu:
+
+Default
+Top Added
+A-Z
+Z-A
+Channel Number Asc
+Channel Number Desc
+
+Use modal dialog as shown in screenshot.
+
+DATA SOURCE
+
+Load categories using IPTV API:
+
+player_api.php?action=get_live_categories
+
+Load channels using:
+
+player_api.php?action=get_live_streams&category_id=ID
+PERFORMANCE
+
+Important optimization:
+
+Load channels only when category is opened
+
+Do NOT load all channels on Live TV start.
+
+Benefits:
+
+Faster loading
+Less memory usage
+Better scrolling
+NAVIGATION STRUCTURE
+
+Create two screens:
+
+LiveTVCategoriesScreen
+LiveTVChannelsScreen
+
+Navigation flow:
+
+Live TV
+↓
+Categories Screen
+↓
+Channels Screen
+↓
+Player
+RESULT
+
+Live TV should behave exactly like professional IPTV apps:
+
+Open Live TV
+↓
+See categories
+↓
+Tap category
+↓
+Channels appear
+↓
+Tap channel → play
+EXTRA IMPROVEMENT (Recommended)
+
+Add category caching.
+
+Example:
+
+If category already loaded
+→ load from cache
+
+Result:
+
+instant navigation
