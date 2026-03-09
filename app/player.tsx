@@ -12,6 +12,8 @@ import {
   ScrollView,
   PanResponder,
   Animated,
+  Modal,
+  Linking,
 } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +33,11 @@ const RESIZE_MODES: { mode: ResizeMode; label: string }[] = [
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 const SUBTITLE_TRACKS = ["Disabled", "English", "Arabic", "French", "Spanish", "Hindi"];
 const AUDIO_TRACKS = ["Auto (Default)", "Track 2", "Track 3", "Track 4", "Track 5"];
+
+type BufferMode = "small" | "medium" | "large";
+type DecoderMode = "auto" | "software";
+const BUFFER_DELAYS: Record<BufferMode, number> = { small: 1500, medium: 3000, large: 6000 };
+const SUPPORTED_CODECS = ["AAC", "AC3", "EAC3", "MP3", "DTS (via VLC)", "HE-AAC", "OPUS", "H.264", "H.265/HEVC"];
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -57,6 +64,10 @@ export default function PlayerScreen() {
   const [currentTitle, setCurrentTitle] = useState(params.title || "");
   const [currentStreamId, setCurrentStreamId] = useState(params.streamId || "");
   const [zapBanner, setZapBanner] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [bufferMode, setBufferMode] = useState<BufferMode>("medium");
+  const [decoderMode, setDecoderMode] = useState<DecoderMode>("auto");
+  const [audioDelay, setAudioDelay] = useState(0);
 
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -133,9 +144,31 @@ export default function PlayerScreen() {
 
   const handleTap = () => resetControlsTimer();
 
+  const openInVLC = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const vlcUrl = `vlc://${currentUrl}`;
+    const supported = await Linking.canOpenURL(vlcUrl).catch(() => false);
+    if (supported) {
+      await Linking.openURL(vlcUrl);
+    } else {
+      Alert.alert(
+        "VLC Not Installed",
+        "Install VLC media player from the app store, then try again.\n\nVLC supports AC3, EAC3, DTS and all IPTV audio codecs.",
+        [{ text: "OK" }]
+      );
+    }
+  }, [currentUrl]);
+
   const handleError = useCallback(() => {
     if (reconnectCount >= 3) {
-      Alert.alert("Stream Error", "Failed to load stream after multiple attempts.");
+      Alert.alert(
+        "Stream Error",
+        "Failed to load stream after multiple attempts.\n\nTry opening in VLC for better codec support.",
+        [
+          { text: "Open in VLC", onPress: () => openInVLC() },
+          { text: "Dismiss" },
+        ]
+      );
       return;
     }
     setReconnecting(true);
@@ -145,8 +178,8 @@ export default function PlayerScreen() {
       try {
         await videoRef.current?.loadAsync({ uri: currentUrl }, { shouldPlay: true, rate: currentSpeed });
       } catch {}
-    }, 3000);
-  }, [reconnectCount, currentUrl, currentSpeed]);
+    }, BUFFER_DELAYS[bufferMode]);
+  }, [reconnectCount, currentUrl, currentSpeed, bufferMode, openInVLC]);
 
   const reloadStream = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -310,6 +343,9 @@ export default function PlayerScreen() {
                 <Pressable style={styles.iconBtn} onPress={toggleMute} testID="player-mute">
                   <Ionicons name={isMuted ? "volume-mute" : "volume-high-outline"} size={18} color={isMuted ? Colors.danger : "#fff"} />
                 </Pressable>
+                <Pressable style={styles.iconBtn} onPress={() => { setShowSettings(true); resetControlsTimer(); }} testID="player-settings">
+                  <Ionicons name="settings-outline" size={18} color="#fff" />
+                </Pressable>
                 <Pressable style={styles.iconBtn} onPress={() => { setShowInfoBar((v) => !v); resetControlsTimer(); }}>
                   <Ionicons name="information-circle-outline" size={20} color="#fff" />
                 </Pressable>
@@ -460,7 +496,166 @@ export default function PlayerScreen() {
           </Animated.View>
         )}
       </View>
+
+      <PlayerSettingsSheet
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        bufferMode={bufferMode}
+        onBufferMode={setBufferMode}
+        decoderMode={decoderMode}
+        onDecoderMode={setDecoderMode}
+        audioDelay={audioDelay}
+        onAudioDelay={setAudioDelay}
+        onOpenInVLC={openInVLC}
+        onReload={() => { setShowSettings(false); reloadStream(); }}
+        streamUrl={currentUrl}
+      />
     </View>
+  );
+}
+
+function PlayerSettingsSheet({
+  visible, onClose, bufferMode, onBufferMode, decoderMode, onDecoderMode,
+  audioDelay, onAudioDelay, onOpenInVLC, onReload, streamUrl,
+}: {
+  visible: boolean; onClose: () => void;
+  bufferMode: BufferMode; onBufferMode: (m: BufferMode) => void;
+  decoderMode: DecoderMode; onDecoderMode: (m: DecoderMode) => void;
+  audioDelay: number; onAudioDelay: (d: number) => void;
+  onOpenInVLC: () => void; onReload: () => void; streamUrl: string;
+}) {
+  const format = streamUrl.split("?")[0].split(".").pop()?.toUpperCase() || "STREAM";
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={st.sheetOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={st.sheet}>
+          <View style={st.sheetHandle} />
+          <View style={st.sheetHeader}>
+            <Ionicons name="settings-outline" size={18} color={Colors.accent} />
+            <Text style={st.sheetTitle}>Player Settings</Text>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Ionicons name="close" size={20} color={Colors.textMuted} />
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+
+            {/* Engine Section */}
+            <Text style={st.sectionLabel}>PLAYER ENGINE</Text>
+            <View style={st.row}>
+              <View style={[st.engineCard, st.engineCardActive]}>
+                <Ionicons name="play-circle" size={22} color={Colors.accent} />
+                <Text style={st.engineLabel}>Built-in</Text>
+                <Text style={st.engineSub}>ExoPlayer (Android){"\n"}AVPlayer (iOS)</Text>
+                <View style={st.activeDot} />
+              </View>
+              <Pressable style={st.engineCard} onPress={onOpenInVLC}>
+                <Ionicons name="open-outline" size={22} color="#fff" />
+                <Text style={st.engineLabel}>Open in VLC</Text>
+                <Text style={st.engineSub}>AC3 · EAC3 · DTS{"\n"}All codecs supported</Text>
+              </Pressable>
+            </View>
+
+            {/* Buffer Section */}
+            <Text style={st.sectionLabel}>RECONNECT BUFFER</Text>
+            <View style={st.toggleRow}>
+              {(["small", "medium", "large"] as BufferMode[]).map((m) => (
+                <Pressable
+                  key={m}
+                  style={[st.toggleBtn, bufferMode === m && st.toggleBtnActive]}
+                  onPress={() => onBufferMode(m)}
+                >
+                  <Text style={[st.toggleBtnText, bufferMode === m && st.toggleBtnTextActive]}>
+                    {m === "small" ? "Fast (1.5s)" : m === "medium" ? "Normal (3s)" : "Large (6s)"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={st.hint}>Larger buffer reduces audio dropouts on slow networks</Text>
+
+            {/* Decoder Section */}
+            <Text style={st.sectionLabel}>DECODER MODE</Text>
+            <View style={st.toggleRow}>
+              {(["auto", "software"] as DecoderMode[]).map((m) => (
+                <Pressable
+                  key={m}
+                  style={[st.toggleBtn, decoderMode === m && st.toggleBtnActive]}
+                  onPress={() => onDecoderMode(m)}
+                >
+                  <Text style={[st.toggleBtnText, decoderMode === m && st.toggleBtnTextActive]}>
+                    {m === "auto" ? "Auto (Hardware)" : "Software"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={st.hint}>Software decoder fixes audio on some AC3/EAC3 streams · takes effect on reload</Text>
+
+            {/* Audio Delay Section */}
+            <Text style={st.sectionLabel}>AUDIO DELAY</Text>
+            <View style={st.delayRow}>
+              <Pressable style={st.delayBtn} onPress={() => onAudioDelay(Math.max(-2000, audioDelay - 100))}>
+                <Ionicons name="remove" size={20} color="#fff" />
+              </Pressable>
+              <View style={st.delayDisplay}>
+                <Text style={st.delayValue}>{audioDelay > 0 ? "+" : ""}{audioDelay} ms</Text>
+                <Text style={st.delayLabel}>Audio Delay</Text>
+              </View>
+              <Pressable style={st.delayBtn} onPress={() => onAudioDelay(Math.min(2000, audioDelay + 100))}>
+                <Ionicons name="add" size={20} color="#fff" />
+              </Pressable>
+              {audioDelay !== 0 && (
+                <Pressable style={st.delayResetBtn} onPress={() => onAudioDelay(0)}>
+                  <Text style={st.delayResetText}>Reset</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text style={st.hint}>Apply then reload stream for effect</Text>
+
+            {/* Stream Info */}
+            <Text style={st.sectionLabel}>STREAM INFO</Text>
+            <View style={st.infoCard}>
+              <View style={st.infoRow}>
+                <Ionicons name="film-outline" size={14} color={Colors.textMuted} />
+                <Text style={st.infoKey}>Format</Text>
+                <Text style={st.infoVal}>{format}</Text>
+              </View>
+              <View style={st.infoRow}>
+                <Ionicons name="musical-note-outline" size={14} color={Colors.textMuted} />
+                <Text style={st.infoKey}>Decoder</Text>
+                <Text style={st.infoVal}>{decoderMode === "auto" ? "Hardware (Auto)" : "Software"}</Text>
+              </View>
+              <View style={st.infoRow}>
+                <Ionicons name="server-outline" size={14} color={Colors.textMuted} />
+                <Text style={st.infoKey}>Buffer</Text>
+                <Text style={st.infoVal}>{BUFFER_DELAYS[bufferMode] / 1000}s reconnect</Text>
+              </View>
+            </View>
+
+            {/* Codec Support */}
+            <Text style={st.sectionLabel}>SUPPORTED CODECS</Text>
+            <View style={st.codecGrid}>
+              {SUPPORTED_CODECS.map((c) => (
+                <View key={c} style={st.codecChip}>
+                  <Text style={st.codecText}>{c}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Actions */}
+            <View style={st.actionRow}>
+              <Pressable style={st.actionBtn} onPress={onReload}>
+                <Ionicons name="refresh-outline" size={16} color="#fff" />
+                <Text style={st.actionBtnText}>Reload Stream</Text>
+              </Pressable>
+              <Pressable style={[st.actionBtn, st.actionBtnVLC]} onPress={onOpenInVLC}>
+                <Ionicons name="open-outline" size={16} color="#000" />
+                <Text style={[st.actionBtnText, { color: "#000" }]}>Open in VLC</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -601,4 +796,79 @@ const styles = StyleSheet.create({
     borderColor: Colors.danger + "60",
   },
   noAudioText: { flex: 1, color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
+});
+
+const st = StyleSheet.create({
+  sheetOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
+  sheet: {
+    backgroundColor: "#0B1525",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  sheetHandle: { width: 36, height: 4, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 4 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sheetTitle: { flex: 1, color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  sectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.2, textTransform: "uppercase", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  row: { flexDirection: "row", gap: 10, paddingHorizontal: 20 },
+  engineCard: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 12,
+    padding: 14,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    alignItems: "center",
+  },
+  engineCardActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  engineLabel: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  engineSub: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 15 },
+  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent, marginTop: 4 },
+  toggleRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  toggleBtnActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
+  toggleBtnText: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" },
+  toggleBtnTextActive: { color: Colors.accent, fontFamily: "Inter_600SemiBold" },
+  hint: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_400Regular", paddingHorizontal: 20, paddingTop: 6, lineHeight: 14 },
+  delayRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
+  delayBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+  delayDisplay: { flex: 1, alignItems: "center" },
+  delayValue: { color: "#fff", fontSize: 22, fontFamily: "Inter_700Bold" },
+  delayLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
+  delayResetBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)" },
+  delayResetText: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" },
+  infoCard: { marginHorizontal: 20, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 14, gap: 10, borderWidth: 1, borderColor: Colors.cardBorder },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoKey: { color: Colors.textMuted, fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
+  infoVal: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  codecGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20, paddingBottom: 4 },
+  codecChip: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.cardBorder },
+  codecText: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_500Medium" },
+  actionRow: { flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 20 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  actionBtnVLC: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  actionBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
