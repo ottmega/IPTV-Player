@@ -46,28 +46,24 @@ type ErrorType = "network" | "decoder" | "timeout" | "unknown";
 const ADAPTIVE_CONFIG: Record<AdaptiveMode, {
   maxRetries: number;
   retryDelays: number[];
-  stallTimeout: number;
   label: string;
   desc: string;
 }> = {
   "low-latency": {
     maxRetries: 2,
     retryDelays: [1000, 2000],
-    stallTimeout: 8000,
     label: "Low Latency",
     desc: "Fast channel switch, accepts more stalls",
   },
   "balanced": {
     maxRetries: 3,
     retryDelays: [1000, 2000, 3000],
-    stallTimeout: 10000,
     label: "Balanced",
     desc: "Best for most networks",
   },
   "high-stability": {
     maxRetries: 5,
     retryDelays: [1500, 3000, 6000, 8000, 10000],
-    stallTimeout: 15000,
     label: "High Stability",
     desc: "Stable on slow or congested connections",
   },
@@ -164,7 +160,6 @@ export default function PlayerScreen() {
   const adaptiveModeRef = useRef<AdaptiveMode>("balanced");
   const bufferingStartRef = useRef<number | null>(null);
   const loadStartTimeRef = useRef<number>(Date.now());
-  const stallCountRef = useRef(0);
   const prefetchAbortRef = useRef<AbortController | null>(null);
 
   // ── Derived Values ──────────────────────────────────────────────────────────
@@ -297,6 +292,7 @@ export default function PlayerScreen() {
       setStreamHealth("buffering");
       if (bufferingStartRef.current === null) {
         bufferingStartRef.current = Date.now();
+        setStallCount((c) => c + 1);
       }
     } else if (!newStatus.isBuffering && newStatus.isPlaying) {
       bufferingStartRef.current = null;
