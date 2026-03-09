@@ -55,7 +55,6 @@ export default function PlayerScreen() {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [showAudioMenu, setShowAudioMenu] = useState(false);
-  const [showInfoBar, setShowInfoBar] = useState(false);
   const [subtitleIdx, setSubtitleIdx] = useState(0);
   const [audioIdx, setAudioIdx] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
@@ -70,19 +69,34 @@ export default function PlayerScreen() {
   const [audioDelay, setAudioDelay] = useState(0);
   const [isSwitching, setIsSwitching] = useState(false);
   const [audioRetryCount, setAudioRetryCount] = useState(0);
+  const [volume, setVolume] = useState(1.0);
+  const [brightness, setBrightness] = useState(1.0);
+  const [showVolumeOSD, setShowVolumeOSD] = useState(false);
+  const [showBrightnessOSD, setShowBrightnessOSD] = useState(false);
+  const [seekPreview, setSeekPreview] = useState<{ direction: "fwd" | "bwd"; secs: number } | null>(null);
 
   const videoRef = useRef<Video>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const zapTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const audioRecoveryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const osdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const zapAnim = useRef(new Animated.Value(0)).current;
+  const controlsAnim = useRef(new Animated.Value(1)).current;
 
   const playbackStarted = useRef(false);
   const isPausedByUser = useRef(false);
   const currentUrlRef = useRef(decodeURIComponent(params.url));
   const audioRetryCountRef = useRef(0);
   const openInVLCRef = useRef<() => void>(() => {});
+  const volumeRef = useRef(1.0);
+  const brightnessRef = useRef(1.0);
+  const gestureZoneRef = useRef<"left" | "center" | "right" | null>(null);
+  const gestureStartValueRef = useRef(0);
+  const isLiveRef = useRef(false);
+  const switchChannelFnRef = useRef<(d: "next" | "prev") => void>(() => {});
+  const seekFnRef = useRef<(d: number) => void>(() => {});
+  const togglePlayFnRef = useRef<() => void>(() => {});
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
   const isLoading = !status?.isLoaded || reconnecting;
@@ -94,11 +108,11 @@ export default function PlayerScreen() {
   const resizeMode = RESIZE_MODES[resizeModeIdx].mode;
   const resizeModeLabel = RESIZE_MODES[resizeModeIdx].label;
   const currentSpeed = SPEEDS[speedIdx];
-
   const currentChannelIdx = channels.findIndex((c) => c.streamId === currentStreamId);
 
   useEffect(() => { currentUrlRef.current = currentUrl; }, [currentUrl]);
   useEffect(() => { audioRetryCountRef.current = audioRetryCount; }, [audioRetryCount]);
+  useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
 
   const handleStatusUpdate = useCallback((newStatus: AVPlaybackStatus) => {
     setStatus(newStatus);
@@ -116,10 +130,7 @@ export default function PlayerScreen() {
               playbackStarted.current = false;
               setAudioRetryCount((c) => c + 1);
               await videoRef.current?.stopAsync().catch(() => {});
-              await videoRef.current?.loadAsync(
-                { uri: currentUrlRef.current },
-                { shouldPlay: true }
-              ).catch(() => {});
+              await videoRef.current?.loadAsync({ uri: currentUrlRef.current }, { shouldPlay: true }).catch(() => {});
             } else {
               Alert.alert(
                 "Audio Issue Detected",
@@ -145,45 +156,68 @@ export default function PlayerScreen() {
   const showZapBanner = (channelName: string) => {
     setZapBanner(channelName);
     Animated.sequence([
-      Animated.timing(zapAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1600),
+      Animated.timing(zapAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(1800),
       Animated.timing(zapAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start(() => setZapBanner(null));
   };
 
+  const showOSD = () => {
+    if (osdTimer.current) clearTimeout(osdTimer.current);
+    osdTimer.current = setTimeout(() => {
+      setShowVolumeOSD(false);
+      setShowBrightnessOSD(false);
+    }, 1200);
+  };
+
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, g) => {
-      const absDx = Math.abs(g.dx);
-      const absDy = Math.abs(g.dy);
-      return absDx > 8 || absDy > 8;
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5,
+    onPanResponderGrant: (evt) => {
+      const x = evt.nativeEvent.locationX;
+      const zone = x < width * 0.22 ? "left" : x > width * 0.78 ? "right" : "center";
+      gestureZoneRef.current = zone;
+      gestureStartValueRef.current = zone === "left" ? brightnessRef.current : volumeRef.current;
+    },
+    onPanResponderMove: (_, g) => {
+      const zone = gestureZoneRef.current;
+      if (!zone || zone === "center") return;
+      const delta = -(g.dy / (height * 0.6));
+      const newVal = Math.max(0, Math.min(1, gestureStartValueRef.current + delta));
+      if (zone === "left") {
+        setBrightness(newVal);
+        brightnessRef.current = newVal;
+        setShowBrightnessOSD(true);
+      } else {
+        setVolume(newVal);
+        volumeRef.current = newVal;
+        videoRef.current?.setVolumeAsync(newVal).catch(() => {});
+        setShowVolumeOSD(true);
+      }
+      showOSD();
     },
     onPanResponderRelease: (_, g) => {
+      const zone = gestureZoneRef.current;
+      gestureZoneRef.current = null;
       const absDx = Math.abs(g.dx);
       const absDy = Math.abs(g.dy);
-      const isTap = absDx < 8 && absDy < 8;
-
-      if (isTap) {
+      if (absDx < 10 && absDy < 10) {
         handleTap();
         return;
       }
-
-      if (isLive && channels.length > 1) {
-        if (absDy > 50 && absDx < absDy) {
-          if (g.dy < -50) switchChannel("next");
-          else switchChannel("prev");
+      if (zone === "left" || zone === "right") return;
+      if (isLiveRef.current && channels.length > 1) {
+        if (absDy > 55 && absDx < absDy) {
+          g.dy < 0 ? switchChannelFnRef.current("next") : switchChannelFnRef.current("prev");
           return;
         }
-        if (absDx > 80 && absDy < absDx) {
-          if (g.dx < -80) switchChannel("next");
-          else switchChannel("prev");
+        if (absDx > 90 && absDy < absDx) {
+          g.dx < 0 ? switchChannelFnRef.current("next") : switchChannelFnRef.current("prev");
           return;
         }
       }
-
-      if (!isLive && absDx > 80 && absDy < absDx) {
-        const skipSeconds = g.dx < 0 ? -15 : 15;
-        seek(skipSeconds);
+      if (!isLiveRef.current && absDx > 80 && absDy < absDx) {
+        seekFnRef.current(g.dx < 0 ? -15 : 15);
       }
     },
   });
@@ -206,19 +240,55 @@ export default function PlayerScreen() {
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
       if (zapTimeout.current) clearTimeout(zapTimeout.current);
       if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
+      if (osdTimer.current) clearTimeout(osdTimer.current);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!Platform.isTV) return;
+    let tvHandler: any;
+    try {
+      const { TVEventHandler: TVH } = require("react-native");
+      tvHandler = new TVH();
+      tvHandler.enable(null, (_: any, evt: any) => {
+        if (!evt) return;
+        resetControlsTimer();
+        switch (evt.eventType) {
+          case "select": resetControlsTimer(); break;
+          case "playPause": togglePlayFnRef.current(); break;
+          case "left":
+            if (isLiveRef.current) switchChannelFnRef.current("prev");
+            else seekFnRef.current(-10);
+            break;
+          case "right":
+            if (isLiveRef.current) switchChannelFnRef.current("next");
+            else seekFnRef.current(10);
+            break;
+          case "up":
+            if (isLiveRef.current) switchChannelFnRef.current("next");
+            break;
+          case "down":
+            if (isLiveRef.current) switchChannelFnRef.current("prev");
+            break;
+          case "back": router.back(); break;
+        }
+      });
+    } catch {}
+    return () => { try { tvHandler?.disable(); } catch {} };
   }, []);
 
   const resetControlsTimer = () => {
     if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
     setShowControls(true);
+    Animated.timing(controlsAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
     controlsTimeout.current = setTimeout(() => {
-      setShowControls(false);
-      setShowSpeedMenu(false);
-      setShowSubMenu(false);
-      setShowAudioMenu(false);
-      setShowInfoBar(false);
-    }, 5000);
+      Animated.timing(controlsAnim, { toValue: 0, duration: 350, useNativeDriver: true }).start(() => {
+        setShowControls(false);
+        setShowSpeedMenu(false);
+        setShowSubMenu(false);
+        setShowAudioMenu(false);
+      });
+    }, 3000);
   };
 
   const handleTap = () => resetControlsTimer();
@@ -296,13 +366,17 @@ export default function PlayerScreen() {
       await videoRef.current?.playAsync();
     }
   };
+  useEffect(() => { togglePlayFnRef.current = togglePlay; });
 
   const seek = async (delta: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     resetControlsTimer();
     const newPos = Math.max(0, positionMs + delta * 1000);
     await videoRef.current?.setPositionAsync(newPos);
+    setSeekPreview({ direction: delta > 0 ? "fwd" : "bwd", secs: Math.abs(delta) });
+    setTimeout(() => setSeekPreview(null), 800);
   };
+  useEffect(() => { seekFnRef.current = seek; });
 
   const cycleResizeMode = () => {
     Haptics.selectionAsync();
@@ -322,14 +396,12 @@ export default function PlayerScreen() {
     if (channels.length === 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     resetControlsTimer();
-
     const idx = channels.findIndex((c) => c.streamId === currentStreamId);
     const nextIdx = direction === "next"
       ? (idx + 1) % channels.length
       : (idx - 1 + channels.length) % channels.length;
     const nextChannel = channels[nextIdx];
     const nextUrl = nextChannel.url || getStreamUrl("live", nextChannel.streamId, "ts");
-
     setCurrentTitle(nextChannel.name);
     setCurrentStreamId(nextChannel.streamId);
     setCurrentUrl(nextUrl);
@@ -340,15 +412,14 @@ export default function PlayerScreen() {
     isPausedByUser.current = false;
     audioRetryCountRef.current = 0;
     if (audioRecoveryTimer.current) clearTimeout(audioRecoveryTimer.current);
-
     showZapBanner(nextChannel.name);
-
     try {
       await videoRef.current?.loadAsync({ uri: nextUrl }, { shouldPlay: true });
     } catch {}
-
     setIsSwitching(false);
   }, [channels, currentStreamId, getStreamUrl]);
+
+  useEffect(() => { switchChannelFnRef.current = switchChannel; }, [switchChannel]);
 
   const formatTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -376,6 +447,15 @@ export default function PlayerScreen() {
     router.back();
   };
 
+  const handlePiP = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      "Picture-in-Picture",
+      "PiP requires a native build of the app.\n\nBuild a standalone APK or use Android TV's built-in PiP when pressing the Home button during playback.",
+      [{ text: "OK" }]
+    );
+  };
+
   if (!params.url) {
     return (
       <View style={styles.errorContainer}>
@@ -389,13 +469,16 @@ export default function PlayerScreen() {
   }
 
   const topPad = Platform.OS === "web" ? 12 : insets.top || 12;
-  const bottomPad = Platform.OS === "web" ? 12 : insets.bottom || 12;
+  const bottomPad = Platform.OS === "web" ? 16 : insets.bottom || 16;
   const leftPad = Platform.OS === "web" ? 12 : insets.left || 12;
   const rightPad = Platform.OS === "web" ? 12 : insets.right || 12;
+
+  const volIcon = isMuted || volume === 0 ? "volume-mute" : volume < 0.4 ? "volume-low-outline" : volume < 0.75 ? "volume-medium-outline" : "volume-high-outline";
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
+
       <View style={styles.videoWrapper} {...panResponder.panHandlers} testID="player-touch">
         <Video
           ref={videoRef}
@@ -409,85 +492,208 @@ export default function PlayerScreen() {
           rate={currentSpeed}
         />
 
-        {(isLoading || isSwitching) && (
+        {brightness < 0.98 && Platform.OS !== "web" && (
+          <View
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: `rgba(0,0,0,${(1 - brightness) * 0.85})` }]}
+            pointerEvents="none"
+          />
+        )}
+
+        {(isLoading || isSwitching) && !showControls && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator color={Colors.accent} size="large" />
             <Text style={styles.bufferingText}>
-              {isSwitching
-                ? `Loading ${currentTitle}...`
-                : reconnecting
-                  ? `Reconnecting... (${reconnectCount + 1}/3)`
-                  : "Loading stream..."}
+              {isSwitching ? `Loading ${currentTitle}...` : reconnecting ? `Reconnecting... (${reconnectCount + 1}/3)` : "Buffering..."}
             </Text>
             {audioRetryCount > 0 && (
-              <Text style={styles.audioRetryText}>
-                Audio recovery attempt {audioRetryCount}/2...
-              </Text>
+              <Text style={styles.audioRetryText}>Audio recovery {audioRetryCount}/2...</Text>
             )}
           </View>
         )}
 
-        {showControls && (
-          <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-            <LinearGradient
-              colors={["rgba(0,0,0,0.72)", "transparent"]}
-              style={[styles.topGrad, { height: topPad + 70 }]}
+        {seekPreview && (
+          <View style={styles.seekPreview}>
+            <Ionicons
+              name={seekPreview.direction === "fwd" ? "play-forward" : "play-back"}
+              size={30}
+              color="#fff"
             />
-            <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.72)"]}
-              style={[styles.bottomGrad, { height: bottomPad + 90 }]}
-            />
+            <Text style={styles.seekPreviewText}>
+              {seekPreview.direction === "fwd" ? "+" : "-"}{seekPreview.secs}s
+            </Text>
+          </View>
+        )}
 
-            <View style={[styles.topBar, { paddingTop: topPad, paddingLeft: leftPad, paddingRight: rightPad }]}>
-              <Pressable style={styles.iconBtn} onPress={handleBack} testID="player-back">
-                <Ionicons name="chevron-back" size={22} color="#fff" />
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, { opacity: controlsAnim }]}
+          pointerEvents={showControls ? "box-none" : "none"}
+        >
+          <LinearGradient
+            colors={["rgba(0,0,0,0.80)", "rgba(0,0,0,0.15)", "transparent"]}
+            style={[styles.topGrad, { height: topPad + 90 }]}
+          />
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.25)", "rgba(0,0,0,0.90)"]}
+            style={[styles.bottomGrad, { height: bottomPad + 130 }]}
+          />
+
+          {/* ── TOP BAR ── */}
+          <View style={[styles.topBar, { paddingTop: topPad + 6, paddingLeft: leftPad + 4, paddingRight: rightPad + 4 }]}>
+            <Pressable
+              style={styles.backBtn}
+              onPress={handleBack}
+              testID="player-back"
+              hasTVPreferredFocus={Platform.isTV}
+            >
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </Pressable>
+
+            <View style={styles.titleBlock}>
+              <Text style={styles.titleText} numberOfLines={1}>{currentTitle}</Text>
+              {(params.genre || params.year || params.episode) && (
+                <Text style={styles.subtitleText} numberOfLines={1}>
+                  {[params.year, params.genre, params.episode].filter(Boolean).join("  ·  ")}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.topRight}>
+              {isLive && (
+                <View style={styles.liveBadgePill}>
+                  <View style={styles.livePulse} />
+                  <Text style={styles.livePillText}>LIVE</Text>
+                </View>
+              )}
+              {Platform.OS === "android" && (
+                <Pressable style={styles.topBtn} onPress={handlePiP}>
+                  <Ionicons name="copy-outline" size={18} color="#fff" />
+                </Pressable>
+              )}
+              <Pressable style={styles.topBtn} onPress={reloadStream} testID="player-reload">
+                <Ionicons name="refresh-outline" size={18} color="#fff" />
               </Pressable>
-              <View style={styles.titleBlock}>
-                <Text style={styles.titleText} numberOfLines={1}>{currentTitle}</Text>
-                {(params.genre || params.year) && (
-                  <Text style={styles.subtitleText} numberOfLines={1}>
-                    {[params.year, params.genre, params.episode].filter(Boolean).join(" · ")}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.topControls}>
-                <Pressable style={styles.iconBtn} onPress={reloadStream} testID="player-reload">
-                  <Ionicons name="refresh-outline" size={18} color="#fff" />
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={toggleMute} testID="player-mute">
-                  <Ionicons name={isMuted ? "volume-mute" : "volume-high-outline"} size={18} color={isMuted ? Colors.danger : "#fff"} />
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => { setShowSettings(true); resetControlsTimer(); }} testID="player-settings">
-                  <Ionicons name="settings-outline" size={18} color="#fff" />
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => { setShowInfoBar((v) => !v); resetControlsTimer(); }}>
-                  <Ionicons name="information-circle-outline" size={20} color="#fff" />
-                </Pressable>
-                {!isLive && (
-                  <Pressable style={styles.iconBtn} onPress={() => { setShowSpeedMenu((v) => !v); setShowSubMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}>
-                    <Text style={styles.controlLabel}>{currentSpeed === 1 ? "1x" : `${currentSpeed}x`}</Text>
+              <Pressable
+                style={styles.topBtn}
+                onPress={() => { setShowSettings(true); resetControlsTimer(); }}
+                testID="player-settings"
+              >
+                <Ionicons name="settings-outline" size={18} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* ── CENTER CONTROLS ── */}
+          {(isLoading || isSwitching) ? (
+            <View style={styles.centerControls}>
+              <ActivityIndicator color={Colors.accent} size="large" />
+              <Text style={styles.bufferingText}>
+                {isSwitching ? `Loading ${currentTitle}...` : reconnecting ? `Reconnecting... (${reconnectCount + 1}/3)` : "Buffering..."}
+              </Text>
+              {audioRetryCount > 0 && <Text style={styles.audioRetryText}>Audio recovery {audioRetryCount}/2...</Text>}
+            </View>
+          ) : (
+            <View style={styles.centerControls}>
+              {isLive && channels.length > 1 ? (
+                <>
+                  <Pressable style={styles.sideNavBtn} onPress={() => switchChannel("prev")}>
+                    <Ionicons name="play-skip-back" size={28} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.sideNavLabel}>Prev</Text>
                   </Pressable>
-                )}
-                <Pressable style={styles.iconBtn} onPress={cycleResizeMode}>
-                  <Text style={styles.controlLabel}>{resizeModeLabel}</Text>
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => { setShowSubMenu((v) => !v); setShowSpeedMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}>
-                  <Ionicons name="text-outline" size={18} color={subtitleIdx > 0 ? Colors.accent : "#fff"} />
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => { setShowAudioMenu((v) => !v); setShowSubMenu(false); setShowSpeedMenu(false); resetControlsTimer(); }}>
-                  <Ionicons name="musical-notes-outline" size={18} color={audioIdx > 0 ? Colors.accent : "#fff"} />
-                </Pressable>
+                  <Pressable style={styles.playBtn} onPress={togglePlay} testID="player-play">
+                    <Ionicons name={isPlaying ? "pause" : "play"} size={44} color="#fff" />
+                  </Pressable>
+                  <Pressable style={styles.sideNavBtn} onPress={() => switchChannel("next")}>
+                    <Ionicons name="play-skip-forward" size={28} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.sideNavLabel}>Next</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable style={styles.sideNavBtn} onPress={() => seek(-10)}>
+                    <Ionicons name="play-back" size={28} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.sideNavLabel}>10s</Text>
+                  </Pressable>
+                  <Pressable style={styles.playBtn} onPress={togglePlay} testID="player-play">
+                    <Ionicons name={isPlaying ? "pause" : "play"} size={44} color="#fff" />
+                  </Pressable>
+                  <Pressable style={styles.sideNavBtn} onPress={() => seek(10)}>
+                    <Ionicons name="play-forward" size={28} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.sideNavLabel}>10s</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* ── BOTTOM BAR ── */}
+          <View style={[styles.bottomBar, { paddingBottom: bottomPad + 8, paddingLeft: leftPad + 4, paddingRight: rightPad + 4 }]}>
+            {!isLive && (
+              <View style={styles.seekRow}>
+                <Text style={styles.timeText}>{formatTime(positionMs)}</Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%` as any }]} />
+                  <View style={[styles.progressThumb, { left: `${Math.min(progress * 100, 100)}%` as any }]} />
+                </View>
+                <Text style={[styles.timeText, { textAlign: "right" }]}>{formatTime(durationMs)}</Text>
               </View>
+            )}
+
+            <View style={styles.controlsRow}>
+              {isLive && (
+                <View style={styles.liveInfo}>
+                  <View style={styles.liveBadgeSmall}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveTextSmall}>LIVE</Text>
+                  </View>
+                  {currentChannelIdx >= 0 && (
+                    <Text style={styles.chText}>CH {currentChannelIdx + 1} / {channels.length}</Text>
+                  )}
+                </View>
+              )}
+
+              <View style={{ flex: 1 }} />
+
+              {!isLive && (
+                <Pressable
+                  style={styles.ctrlBtn}
+                  onPress={() => { setShowSpeedMenu((v) => !v); setShowSubMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}
+                >
+                  <Text style={styles.ctrlBtnLabel}>{currentSpeed === 1 ? "1×" : `${currentSpeed}×`}</Text>
+                </Pressable>
+              )}
+              <Pressable
+                style={styles.ctrlBtn}
+                onPress={() => { setShowAudioMenu((v) => !v); setShowSubMenu(false); setShowSpeedMenu(false); resetControlsTimer(); }}
+                testID="player-audio"
+              >
+                <Ionicons name="musical-notes-outline" size={20} color={audioIdx > 0 ? Colors.accent : "#fff"} />
+              </Pressable>
+              <Pressable
+                style={styles.ctrlBtn}
+                onPress={() => { setShowSubMenu((v) => !v); setShowSpeedMenu(false); setShowAudioMenu(false); resetControlsTimer(); }}
+              >
+                <Ionicons name="text-outline" size={20} color={subtitleIdx > 0 ? Colors.accent : "#fff"} />
+              </Pressable>
+              <Pressable style={styles.ctrlBtn} onPress={cycleResizeMode}>
+                <Ionicons
+                  name={resizeModeIdx === 0 ? "scan-outline" : resizeModeIdx === 1 ? "expand-outline" : "contract-outline"}
+                  size={20}
+                  color="#fff"
+                />
+              </Pressable>
+              <Pressable style={styles.ctrlBtn} onPress={toggleMute} testID="player-mute">
+                <Ionicons name={volIcon} size={20} color={isMuted ? Colors.danger : "#fff"} />
+              </Pressable>
             </View>
 
             {showSpeedMenu && (
               <TrackMenu
-                items={SPEEDS.map((s) => (s === 1 ? "Normal" : `${s}x`))}
+                items={SPEEDS.map((s) => (s === 1 ? "Normal (1×)" : `${s}×`))}
                 activeIdx={speedIdx}
                 onSelect={(i) => changeSpeed(i)}
-                right={rightPad + 8}
-                top={topPad + 52}
                 title="Playback Speed"
+                anchorRight={rightPad + 4}
+                anchorBottom={bottomPad + 60}
               />
             )}
             {showSubMenu && (
@@ -495,9 +701,9 @@ export default function PlayerScreen() {
                 items={SUBTITLE_TRACKS}
                 activeIdx={subtitleIdx}
                 onSelect={(i) => { setSubtitleIdx(i); setShowSubMenu(false); resetControlsTimer(); }}
-                right={rightPad + 8}
-                top={topPad + 52}
                 title="Subtitles"
+                anchorRight={rightPad + 4}
+                anchorBottom={bottomPad + 60}
               />
             )}
             {showAudioMenu && (
@@ -510,112 +716,68 @@ export default function PlayerScreen() {
                   resetControlsTimer();
                   reloadStream();
                 }}
-                right={rightPad + 8}
-                top={topPad + 52}
                 title="Audio Track"
                 subtitle="Selecting a track reloads the stream"
+                anchorRight={rightPad + 4}
+                anchorBottom={bottomPad + 60}
               />
             )}
-
-            <View style={styles.centerControls}>
-              {isLive && channels.length > 1 && (
-                <Pressable style={styles.channelNavBtn} onPress={() => switchChannel("prev")}>
-                  <Ionicons name="play-skip-back" size={24} color="#fff" />
-                  <Text style={styles.navLabel}>Prev</Text>
-                </Pressable>
-              )}
-              {!isLive && (
-                <Pressable style={styles.seekBtn} onPress={() => seek(-10)}>
-                  <Ionicons name="play-back" size={26} color="#fff" />
-                  <Text style={styles.seekLabel}>10s</Text>
-                </Pressable>
-              )}
-              <Pressable style={styles.playBtn} onPress={togglePlay} testID="player-play">
-                <Ionicons name={isPlaying ? "pause" : "play"} size={38} color="#fff" />
-              </Pressable>
-              {!isLive && (
-                <Pressable style={styles.seekBtn} onPress={() => seek(10)}>
-                  <Ionicons name="play-forward" size={26} color="#fff" />
-                  <Text style={styles.seekLabel}>10s</Text>
-                </Pressable>
-              )}
-              {isLive && channels.length > 1 && (
-                <Pressable style={styles.channelNavBtn} onPress={() => switchChannel("next")}>
-                  <Ionicons name="play-skip-forward" size={24} color="#fff" />
-                  <Text style={styles.navLabel}>Next</Text>
-                </Pressable>
-              )}
-            </View>
-
-            <View style={[styles.bottomBar, { paddingBottom: bottomPad + 4, paddingLeft: leftPad, paddingRight: rightPad }]}>
-              {isLive ? (
-                <View style={styles.liveRow}>
-                  <View style={styles.liveBadge}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.liveText}>LIVE</Text>
-                  </View>
-                  <Text style={styles.liveChannelText} numberOfLines={1}>{currentTitle}</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.timeText}>{formatTime(positionMs)}</Text>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%` as any }]} />
-                    <View style={[styles.progressThumb, { left: `${Math.min(progress * 100, 100)}%` as any }]} />
-                  </View>
-                  <Text style={styles.timeText}>{formatTime(durationMs)}</Text>
-                </>
-              )}
-            </View>
-
-            {showInfoBar && (
-              <View style={[styles.infoBar, { bottom: bottomPad + 60 }]}>
-                <Ionicons name="film" size={16} color={Colors.accent} />
-                <Text style={styles.infoTitle}>{currentTitle}</Text>
-                {params.genre ? <Text style={styles.infoChip}>{params.genre}</Text> : null}
-                {params.year ? <Text style={styles.infoChip}>{params.year}</Text> : null}
-                {params.episode ? <Text style={styles.infoChip}>{params.episode}</Text> : null}
-                {isLive && currentChannelIdx >= 0 && (
-                  <Text style={styles.infoChip}>Ch {currentChannelIdx + 1}</Text>
-                )}
-              </View>
-            )}
-
-            {isMuted && isPlaying && (
-              <Pressable
-                style={[styles.noAudioBanner, { bottom: bottomPad + 56 }]}
-                onPress={toggleMute}
-                testID="player-no-audio-banner"
-              >
-                <Ionicons name="volume-mute" size={14} color={Colors.danger} />
-                <Text style={styles.noAudioText}>Audio muted — tap to unmute</Text>
-                <Ionicons name="close-outline" size={14} color="rgba(255,255,255,0.6)" />
-              </Pressable>
-            )}
-
-            {isLive && (
-              <View style={[styles.swipeHint, { bottom: bottomPad + 42 }]}>
-                <Ionicons name="chevron-up" size={12} color="rgba(255,255,255,0.35)" />
-                <Text style={styles.swipeHintText}>swipe up/down</Text>
-                <Text style={styles.swipeHintText}>or left/right</Text>
-                <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.35)" />
-              </View>
-            )}
           </View>
-        )}
+
+          {/* Gesture zone hints */}
+          <View style={[styles.zoneHint, { left: 0, top: "40%", bottom: "40%" }]} pointerEvents="none">
+            <Ionicons name="sunny-outline" size={12} color="rgba(255,255,255,0.18)" />
+            <Text style={styles.zoneHintText}>Brightness</Text>
+          </View>
+          <View style={[styles.zoneHint, { right: 0, top: "40%", bottom: "40%" }]} pointerEvents="none">
+            <Ionicons name="volume-medium-outline" size={12} color="rgba(255,255,255,0.18)" />
+            <Text style={styles.zoneHintText}>Volume</Text>
+          </View>
+        </Animated.View>
+
+        {/* ── ALWAYS-VISIBLE OVERLAYS ── */}
 
         {zapBanner && (
-          <Animated.View style={[styles.zapBanner, { opacity: zapAnim }]}>
-            <Ionicons name="tv" size={16} color="#fff" />
+          <Animated.View style={[styles.zapBanner, { opacity: zapAnim }]} pointerEvents="none">
+            <Ionicons name="tv" size={15} color="#fff" />
             <View>
               <Text style={styles.zapText} numberOfLines={1}>{zapBanner}</Text>
               {channels.length > 1 && currentChannelIdx >= 0 && (
-                <Text style={styles.zapSubText}>
-                  CH {currentChannelIdx + 1} / {channels.length}  •  swipe to change
-                </Text>
+                <Text style={styles.zapSubText}>CH {currentChannelIdx + 1} / {channels.length}  ·  swipe to switch</Text>
               )}
             </View>
           </Animated.View>
+        )}
+
+        {showVolumeOSD && (
+          <View style={[styles.osdPanel, { right: rightPad + 8 }]} pointerEvents="none">
+            <Ionicons name={volIcon} size={18} color="#fff" />
+            <View style={styles.osdTrack}>
+              <View style={[styles.osdFill, { height: `${Math.round(volume * 100)}%` as any }]} />
+            </View>
+            <Text style={styles.osdValue}>{Math.round(volume * 100)}%</Text>
+          </View>
+        )}
+
+        {showBrightnessOSD && (
+          <View style={[styles.osdPanel, { left: leftPad + 8 }]} pointerEvents="none">
+            <Ionicons name="sunny-outline" size={18} color="#fff" />
+            <View style={styles.osdTrack}>
+              <View style={[styles.osdFill, { height: `${Math.round(brightness * 100)}%` as any }]} />
+            </View>
+            <Text style={styles.osdValue}>{Math.round(brightness * 100)}%</Text>
+          </View>
+        )}
+
+        {isMuted && isPlaying && (
+          <Pressable
+            style={[styles.muteBanner, { bottom: bottomPad + 70 }]}
+            onPress={toggleMute}
+            testID="player-no-audio-banner"
+          >
+            <Ionicons name="volume-mute" size={14} color={Colors.danger} />
+            <Text style={styles.muteBannerText}>Audio muted — tap to unmute</Text>
+          </Pressable>
         )}
       </View>
 
@@ -661,8 +823,6 @@ function PlayerSettingsSheet({
             </Pressable>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-
-            {/* Engine Section */}
             <Text style={st.sectionLabel}>PLAYER ENGINE</Text>
             <View style={st.row}>
               <View style={[st.engineCard, st.engineCardActive]}>
@@ -678,32 +838,22 @@ function PlayerSettingsSheet({
               </Pressable>
             </View>
 
-            {/* Buffer Section */}
             <Text style={st.sectionLabel}>RECONNECT BUFFER</Text>
             <View style={st.toggleRow}>
               {(["small", "medium", "large"] as BufferMode[]).map((m) => (
-                <Pressable
-                  key={m}
-                  style={[st.toggleBtn, bufferMode === m && st.toggleBtnActive]}
-                  onPress={() => onBufferMode(m)}
-                >
+                <Pressable key={m} style={[st.toggleBtn, bufferMode === m && st.toggleBtnActive]} onPress={() => onBufferMode(m)}>
                   <Text style={[st.toggleBtnText, bufferMode === m && st.toggleBtnTextActive]}>
                     {m === "small" ? "Fast (1.5s)" : m === "medium" ? "Normal (3s)" : "Large (6s)"}
                   </Text>
                 </Pressable>
               ))}
             </View>
-            <Text style={st.hint}>Larger buffer reduces audio dropouts on slow networks</Text>
+            <Text style={st.hint}>Larger buffer reduces dropouts on slow networks</Text>
 
-            {/* Decoder Section */}
             <Text style={st.sectionLabel}>DECODER MODE</Text>
             <View style={st.toggleRow}>
               {(["auto", "software"] as DecoderMode[]).map((m) => (
-                <Pressable
-                  key={m}
-                  style={[st.toggleBtn, decoderMode === m && st.toggleBtnActive]}
-                  onPress={() => onDecoderMode(m)}
-                >
+                <Pressable key={m} style={[st.toggleBtn, decoderMode === m && st.toggleBtnActive]} onPress={() => onDecoderMode(m)}>
                   <Text style={[st.toggleBtnText, decoderMode === m && st.toggleBtnTextActive]}>
                     {m === "auto" ? "Auto (Hardware)" : "Software"}
                   </Text>
@@ -712,7 +862,6 @@ function PlayerSettingsSheet({
             </View>
             <Text style={st.hint}>Software decoder fixes audio on some AC3/EAC3 streams · takes effect on reload</Text>
 
-            {/* Audio Delay Section */}
             <Text style={st.sectionLabel}>AUDIO DELAY</Text>
             <View style={st.delayRow}>
               <Pressable style={st.delayBtn} onPress={() => onAudioDelay(Math.max(-2000, audioDelay - 100))}>
@@ -733,7 +882,6 @@ function PlayerSettingsSheet({
             </View>
             <Text style={st.hint}>Apply then reload stream for effect</Text>
 
-            {/* Stream Info */}
             <Text style={st.sectionLabel}>STREAM INFO</Text>
             <View style={st.infoCard}>
               <View style={st.infoRow}>
@@ -753,7 +901,6 @@ function PlayerSettingsSheet({
               </View>
             </View>
 
-            {/* Codec Support */}
             <Text style={st.sectionLabel}>SUPPORTED CODECS</Text>
             <View style={st.codecGrid}>
               {SUPPORTED_CODECS.map((c) => (
@@ -763,7 +910,6 @@ function PlayerSettingsSheet({
               ))}
             </View>
 
-            {/* Actions */}
             <View style={st.actionRow}>
               <Pressable style={st.actionBtn} onPress={onReload}>
                 <Ionicons name="refresh-outline" size={16} color="#fff" />
@@ -781,15 +927,15 @@ function PlayerSettingsSheet({
   );
 }
 
-function TrackMenu({ items, activeIdx, onSelect, right, top, title, subtitle }: {
+function TrackMenu({ items, activeIdx, onSelect, title, subtitle, anchorRight, anchorBottom }: {
   items: string[]; activeIdx: number; onSelect: (i: number) => void;
-  right: number; top: number; title: string; subtitle?: string;
+  title: string; subtitle?: string; anchorRight: number; anchorBottom: number;
 }) {
   return (
-    <View style={[styles.trackMenu, { right, top }]}>
+    <View style={[styles.trackMenu, { right: anchorRight, bottom: anchorBottom }]}>
       <Text style={styles.trackMenuTitle}>{title}</Text>
       {subtitle && <Text style={styles.trackMenuSubtitle}>{subtitle}</Text>}
-      <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
         {items.map((item, i) => (
           <Pressable
             key={item}
@@ -801,9 +947,7 @@ function TrackMenu({ items, activeIdx, onSelect, right, top, title, subtitle }: 
               size={15}
               color={i === activeIdx ? Colors.accent : Colors.textMuted}
             />
-            <Text style={[styles.trackMenuText, i === activeIdx && styles.trackMenuTextActive]}>
-              {item}
-            </Text>
+            <Text style={[styles.trackMenuText, i === activeIdx && styles.trackMenuTextActive]}>{item}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -815,33 +959,207 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   videoWrapper: { flex: 1, backgroundColor: "#000" },
   video: { flex: 1 },
-  loadingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.55)", gap: 14 },
-  bufferingText: { color: "#fff", fontSize: 14, fontFamily: "Inter_400Regular" },
+
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    gap: 14,
+  },
+  bufferingText: { color: "rgba(255,255,255,0.85)", fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  audioRetryText: { color: Colors.accent, fontSize: 12, fontFamily: "Inter_400Regular" },
+
+  seekPreview: {
+    position: "absolute",
+    top: "42%",
+    alignSelf: "center",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  seekPreviewText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
+
   topGrad: { position: "absolute", top: 0, left: 0, right: 0 },
   bottomGrad: { position: "absolute", bottom: 0, left: 0, right: 0 },
-  topBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "flex-start", paddingBottom: 10, gap: 10 },
-  iconBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(0,0,0,0.4)" },
-  titleBlock: { flex: 1, paddingTop: 4 },
-  titleText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  subtitleText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  topControls: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" },
-  controlLabel: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
-  centerControls: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 40 },
-  seekBtn: { alignItems: "center", gap: 3 },
-  seekLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Inter_400Regular" },
-  channelNavBtn: { alignItems: "center", gap: 3, paddingHorizontal: 8 },
-  navLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontFamily: "Inter_400Regular" },
-  playBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.3)" },
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10 },
-  liveRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.danger, borderRadius: 5, paddingHorizontal: 10, paddingVertical: 4 },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
-  liveText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  liveChannelText: { flex: 1, color: "rgba(255,255,255,0.8)", fontSize: 13, fontFamily: "Inter_500Medium" },
-  timeText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", minWidth: 44 },
-  progressTrack: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 2, overflow: "visible", position: "relative" },
+
+  topBar: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingBottom: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  titleBlock: { flex: 1 },
+  titleText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  subtitleText: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+
+  topRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveBadgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: Colors.danger,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  livePulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },
+  livePillText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.2 },
+  topBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+
+  centerControls: {
+    position: "absolute",
+    top: 0, bottom: 0, left: 0, right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 48,
+  },
+  playBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sideNavBtn: { alignItems: "center", gap: 5 },
+  sideNavLabel: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontFamily: "Inter_500Medium" },
+
+  bottomBar: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    gap: 10,
+    paddingTop: 8,
+  },
+  seekRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingBottom: 2 },
+  timeText: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontFamily: "Inter_500Medium", minWidth: 48 },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 2,
+    position: "relative",
+    overflow: "visible",
+  },
   progressFill: { height: "100%", backgroundColor: Colors.accent, borderRadius: 2 },
-  progressThumb: { position: "absolute", top: -5, marginLeft: -6, width: 14, height: 14, borderRadius: 7, backgroundColor: "#fff" },
+  progressThumb: {
+    position: "absolute",
+    top: -6,
+    marginLeft: -7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+
+  controlsRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ctrlBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+  },
+  ctrlBtnLabel: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
+
+  liveInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
+  liveBadgeSmall: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.danger, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3 },
+  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
+  liveTextSmall: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  chText: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "Inter_400Regular" },
+
+  zoneHint: {
+    position: "absolute",
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  zoneHintText: { color: "rgba(255,255,255,0.15)", fontSize: 8, fontFamily: "Inter_400Regular", textAlign: "center" },
+
+  zapBanner: {
+    position: "absolute",
+    top: "44%",
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.accent + "60",
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    maxWidth: 300,
+  },
+  zapText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  zapSubText: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
+
+  osdPanel: {
+    position: "absolute",
+    top: "25%",
+    bottom: "25%",
+    width: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  osdTrack: {
+    flex: 1,
+    width: 4,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 2,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  osdFill: { width: "100%", backgroundColor: Colors.accent, borderRadius: 2 },
+  osdValue: { color: "rgba(255,255,255,0.8)", fontSize: 10, fontFamily: "Inter_500Medium" },
+
+  muteBanner: {
+    position: "absolute",
+    left: 16, right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: Colors.danger + "55",
+  },
+  muteBannerText: { flex: 1, color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
+
   trackMenu: {
     position: "absolute",
     backgroundColor: "rgba(8,8,20,0.97)",
@@ -850,118 +1168,36 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     minWidth: 200,
     maxWidth: 260,
-    zIndex: 30,
+    zIndex: 50,
     overflow: "hidden",
   },
-  trackMenuTitle: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 1, textTransform: "uppercase", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  trackMenuSubtitle: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, paddingHorizontal: 16, paddingBottom: 8, paddingTop: 4, borderBottomWidth: 1, borderBottomColor: Colors.border + "60" },
-  trackMenuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border + "80" },
+  trackMenuTitle: { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 1, textTransform: "uppercase", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  trackMenuSubtitle: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, paddingHorizontal: 16, paddingBottom: 8, paddingTop: 4, borderBottomWidth: 1, borderBottomColor: Colors.border + "50" },
+  trackMenuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border + "70" },
   trackMenuItemActive: { backgroundColor: Colors.accentSoft },
   trackMenuText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   trackMenuTextActive: { color: Colors.accent, fontFamily: "Inter_600SemiBold" },
-  infoBar: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    flexWrap: "wrap",
-  },
-  infoTitle: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
-  infoChip: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  zapBanner: {
-    position: "absolute",
-    top: "50%",
-    alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.82)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.accent + "70",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    maxWidth: 280,
-  },
-  zapText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  zapSubText: { color: "rgba(255,255,255,0.55)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  audioRetryText: { color: Colors.accent, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
-  swipeHint: {
-    position: "absolute",
-    right: 14,
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 3,
-    opacity: 0.6,
-  },
-  swipeHintText: { color: "rgba(255,255,255,0.35)", fontSize: 8, fontFamily: "Inter_400Regular" },
+
   errorContainer: { flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center", gap: 16 },
   errorText: { color: Colors.text, fontSize: 16, fontFamily: "Inter_500Medium" },
   errorBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.accent },
-  noAudioBanner: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(0,0,0,0.82)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: Colors.danger + "60",
-  },
-  noAudioText: { flex: 1, color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
 });
 
 const st = StyleSheet.create({
   sheetOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
-  sheet: {
-    backgroundColor: "#0B1525",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "85%",
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
+  sheet: { backgroundColor: "#0B1525", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%", paddingBottom: 24, borderTopWidth: 1, borderColor: Colors.cardBorder },
   sheetHandle: { width: 36, height: 4, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 4 },
   sheetHeader: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
   sheetTitle: { flex: 1, color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   sectionLabel: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.2, textTransform: "uppercase", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
   row: { flexDirection: "row", gap: 10, paddingHorizontal: 20 },
-  engineCard: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 12,
-    padding: 14,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    alignItems: "center",
-  },
+  engineCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: "center" },
   engineCardActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
   engineLabel: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4 },
   engineSub: { color: Colors.textMuted, fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 15 },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent, marginTop: 4 },
   toggleRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
+  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: Colors.cardBorder },
   toggleBtnActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   toggleBtnText: { color: Colors.textMuted, fontSize: 11, fontFamily: "Inter_500Medium" },
   toggleBtnTextActive: { color: Colors.accent, fontFamily: "Inter_600SemiBold" },
@@ -981,18 +1217,7 @@ const st = StyleSheet.create({
   codecChip: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: Colors.cardBorder },
   codecText: { color: Colors.textSecondary, fontSize: 11, fontFamily: "Inter_500Medium" },
   actionRow: { flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 20 },
-  actionBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: Colors.cardBorder },
   actionBtnVLC: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   actionBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
