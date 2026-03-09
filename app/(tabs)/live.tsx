@@ -60,7 +60,7 @@ export default function LiveTVScreen() {
 
   const [search, setSearch] = useState("");
   const [sidebarSearch, setSidebarSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "favorites">("name");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -90,9 +90,14 @@ export default function LiveTVScreen() {
     return map;
   }, [channels]);
 
+  useEffect(() => {
+    if (selectedCategory === "" && liveCategories.length > 0) {
+      setSelectedCategory(liveCategories[0].categoryId);
+    }
+  }, [liveCategories]);
+
   const allCategories = useMemo(
     () => [
-      { categoryId: "all", categoryName: "All Channels" },
       { categoryId: "favorites", categoryName: "Favorites" },
       ...liveCategories,
     ],
@@ -109,7 +114,7 @@ export default function LiveTVScreen() {
     let list = channels;
     if (selectedCategory === "favorites") {
       list = list.filter((c) => isFavorite("channels", c.streamId));
-    } else if (selectedCategory !== "all") {
+    } else if (selectedCategory) {
       list = list.filter((c) => c.categoryId === selectedCategory);
     }
     if (search) {
@@ -126,7 +131,7 @@ export default function LiveTVScreen() {
     return list;
   }, [channels, selectedCategory, search, sortBy, isFavorite]);
 
-  const selectedLabel = allCategories.find((c) => c.categoryId === selectedCategory)?.categoryName || "All Channels";
+  const selectedLabel = allCategories.find((c) => c.categoryId === selectedCategory)?.categoryName || "";
 
   const openChannel = useCallback((channel: Channel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -142,7 +147,6 @@ export default function LiveTVScreen() {
   };
 
   const getCategoryCount = useCallback((categoryId: string) => {
-    if (categoryId === "all") return channels.length;
     if (categoryId === "favorites") return channels.filter((ch) => isFavorite("channels", ch.streamId)).length;
     return channelCountByCategory[categoryId] || 0;
   }, [channels, channelCountByCategory, isFavorite]);
