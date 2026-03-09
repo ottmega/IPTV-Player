@@ -1,0 +1,136 @@
+1️⃣ Unsupported Audio Codec (Sabse common issue)
+
+Kai IPTV streams me audio codec hota hai:
+
+AC3
+EAC3
+DTS
+AAC-LATM
+
+Android ke kuch players inko decode nahi kar pate, isliye:
+
+video chalti hai
+
+audio mute ho jati hai
+
+Example:
+
+Video: H264
+Audio: AC3
+
+Solution:
+
+Player me multiple audio engine support do.
+
+Recommended players:
+
+ExoPlayer
+VLC Player
+
+VLC almost sab codecs support karta hai.
+
+2️⃣ Wrong Audio Track Selected
+
+Kai channels me multiple audio tracks hoti hain.
+
+Example:
+
+Track 1 → English
+Track 2 → Hindi
+Track 3 → Commentary
+Track 4 → Empty
+
+Kabhi player automatically empty track select kar leta hai.
+
+Result:
+
+Video → OK
+Audio → No sound
+
+Solution:
+
+Player me option add karo:
+
+Audio Track Selection
+3️⃣ IPTV Server Audio Bug
+
+Kabhi stream me hi audio nahi hoti.
+
+Example stream:
+
+video.m3u8
+
+Video segments me audio track missing hota hai.
+
+Test ka tareeka:
+
+Stream VLC player me chalao.
+
+Agar VLC me bhi audio nahi:
+
+Server issue
+4️⃣ Hardware Decoder Bug
+
+Android devices me kabhi hardware decoding audio ko break kar deta hai.
+
+Especially:
+
+cheap devices
+old Android versions
+
+Solution:
+
+Player settings me option do:
+
+Hardware Decoder
+Software Decoder
+5️⃣ Buffer / Network Issue
+
+Low network speed me kabhi audio stream drop ho jati hai.
+
+Symptoms:
+
+Video OK
+Audio missing
+
+Fix:
+
+Player me auto reconnect logic add karo.
+
+6️⃣ ExoPlayer Audio Bug (Rare)
+
+Kabhi ExoPlayer me issue hota hai.
+
+Solution:
+
+Stream reload:
+
+player.stop()
+player.prepare()
+Best Solution (Professional IPTV Apps)
+
+Professional IPTV apps ye 3 features use karte hain:
+
+1. ExoPlayer
+2. VLC fallback
+3. Audio track switch
+
+Flow:
+
+If ExoPlayer audio fails
+→ switch to VLC player
+Prompt Replit Ko Dene Ke Liye
+
+Tum ye prompt bhej sakte ho:
+
+Fix audio issues in the OTTMEGA IPTV player.
+
+Sometimes channels play video but no audio.
+
+Add the following improvements:
+
+1. Add audio track selection inside the player.
+2. Add support for multiple audio codecs (AAC, AC3, EAC3).
+3. Allow switching between ExoPlayer and VLC player.
+4. Add automatic player fallback if audio fails.
+5. Add a "Reload Stream" option when audio is missing.

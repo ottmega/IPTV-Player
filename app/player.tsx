@@ -30,7 +30,7 @@ const RESIZE_MODES: { mode: ResizeMode; label: string }[] = [
 ];
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 const SUBTITLE_TRACKS = ["Disabled", "English", "Arabic", "French", "Spanish", "Hindi"];
-const AUDIO_TRACKS = ["Track 1 (Default)", "Track 2 (English)", "Track 3 (Arabic)", "Track 4 (Hindi)"];
+const AUDIO_TRACKS = ["Auto (Default)", "Track 2", "Track 3", "Track 4", "Track 5"];
 
 export default function PlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -66,6 +66,7 @@ export default function PlayerScreen() {
 
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
   const isLoading = !status?.isLoaded || reconnecting;
+  const isMuted = status?.isLoaded ? status.isMuted : false;
   const progress = status?.isLoaded && status.durationMillis ? status.positionMillis / status.durationMillis : 0;
   const positionMs = status?.isLoaded ? status.positionMillis : 0;
   const durationMs = status?.isLoaded ? (status.durationMillis ?? 0) : 0;
@@ -146,6 +147,24 @@ export default function PlayerScreen() {
       } catch {}
     }, 3000);
   }, [reconnectCount, currentUrl, currentSpeed]);
+
+  const reloadStream = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetControlsTimer();
+    setReconnecting(true);
+    setReconnectCount(0);
+    try {
+      await videoRef.current?.stopAsync();
+      await videoRef.current?.loadAsync({ uri: currentUrl }, { shouldPlay: true, rate: currentSpeed });
+    } catch {}
+    setReconnecting(false);
+  };
+
+  const toggleMute = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetControlsTimer();
+    await videoRef.current?.setIsMutedAsync(!isMuted);
+  };
 
   const togglePlay = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -285,6 +304,12 @@ export default function PlayerScreen() {
                 )}
               </View>
               <View style={styles.topControls}>
+                <Pressable style={styles.iconBtn} onPress={reloadStream} testID="player-reload">
+                  <Ionicons name="refresh-outline" size={18} color="#fff" />
+                </Pressable>
+                <Pressable style={styles.iconBtn} onPress={toggleMute} testID="player-mute">
+                  <Ionicons name={isMuted ? "volume-mute" : "volume-high-outline"} size={18} color={isMuted ? Colors.danger : "#fff"} />
+                </Pressable>
                 <Pressable style={styles.iconBtn} onPress={() => { setShowInfoBar((v) => !v); resetControlsTimer(); }}>
                   <Ionicons name="information-circle-outline" size={20} color="#fff" />
                 </Pressable>
@@ -329,10 +354,16 @@ export default function PlayerScreen() {
               <TrackMenu
                 items={AUDIO_TRACKS}
                 activeIdx={audioIdx}
-                onSelect={(i) => { setAudioIdx(i); setShowAudioMenu(false); resetControlsTimer(); }}
+                onSelect={(i) => {
+                  setAudioIdx(i);
+                  setShowAudioMenu(false);
+                  resetControlsTimer();
+                  reloadStream();
+                }}
                 right={rightPad + 8}
                 top={topPad + 52}
                 title="Audio Track"
+                subtitle="Selecting a track reloads the stream"
               />
             )}
 
@@ -400,6 +431,18 @@ export default function PlayerScreen() {
               </View>
             )}
 
+            {isMuted && isPlaying && (
+              <Pressable
+                style={[styles.noAudioBanner, { bottom: bottomPad + 56 }]}
+                onPress={toggleMute}
+                testID="player-no-audio-banner"
+              >
+                <Ionicons name="volume-mute" size={14} color={Colors.danger} />
+                <Text style={styles.noAudioText}>Audio muted — tap to unmute</Text>
+                <Ionicons name="close-outline" size={14} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            )}
+
             {isLive && (
               <View style={[styles.swipeHint, { bottom: bottomPad + 42 }]}>
                 <Ionicons name="chevron-up" size={12} color="rgba(255,255,255,0.35)" />
@@ -421,12 +464,14 @@ export default function PlayerScreen() {
   );
 }
 
-function TrackMenu({ items, activeIdx, onSelect, right, top, title }: {
-  items: string[]; activeIdx: number; onSelect: (i: number) => void; right: number; top: number; title: string;
+function TrackMenu({ items, activeIdx, onSelect, right, top, title, subtitle }: {
+  items: string[]; activeIdx: number; onSelect: (i: number) => void;
+  right: number; top: number; title: string; subtitle?: string;
 }) {
   return (
     <View style={[styles.trackMenu, { right, top }]}>
       <Text style={styles.trackMenuTitle}>{title}</Text>
+      {subtitle && <Text style={styles.trackMenuSubtitle}>{subtitle}</Text>}
       <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
         {items.map((item, i) => (
           <Pressable
@@ -492,6 +537,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   trackMenuTitle: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 1, textTransform: "uppercase", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  trackMenuSubtitle: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, paddingHorizontal: 16, paddingBottom: 8, paddingTop: 4, borderBottomWidth: 1, borderBottomColor: Colors.border + "60" },
   trackMenuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border + "80" },
   trackMenuItemActive: { backgroundColor: Colors.accentSoft },
   trackMenuText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
@@ -540,4 +586,19 @@ const styles = StyleSheet.create({
   errorContainer: { flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center", gap: 16 },
   errorText: { color: Colors.text, fontSize: 16, fontFamily: "Inter_500Medium" },
   errorBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.accent },
+  noAudioBanner: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.82)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: Colors.danger + "60",
+  },
+  noAudioText: { flex: 1, color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
 });
