@@ -19,18 +19,23 @@ import { useIPTV, Channel } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-function getGridCols(w: number): number {
-  if (w < 400) return 2;
-  if (w < 600) return 3;
-  if (w < 900) return 4;
-  if (w < 1200) return 5;
-  return 6;
+function getGridCols(w: number, isPortrait: boolean): number {
+  if (isPortrait) {
+    if (w < 380) return 2;
+    if (w < 600) return 3;
+    return 4;
+  }
+  if (w < 500) return 3;
+  if (w < 700) return 4;
+  if (w < 900) return 5;
+  if (w < 1200) return 6;
+  return 7;
 }
 
-function getCardSize(w: number, cols: number, sidebarVisible: boolean): number {
+function getCardSize(w: number, cols: number, sidebarVisible: boolean, isPortrait: boolean): number {
   const usableWidth = sidebarVisible ? w - 160 : w;
-  const padding = 24;
-  const gap = (cols - 1) * 10;
+  const padding = isPortrait ? 20 : 24;
+  const gap = (cols - 1) * 8;
   return Math.floor((usableWidth - padding - gap) / cols);
 }
 
@@ -55,16 +60,16 @@ function useNow() {
   const h = now.getHours() % 12 || 12;
   const mm = String(now.getMinutes()).padStart(2, "0");
   const ampm = now.getHours() >= 12 ? "PM" : "AM";
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return {
     time: `${String(h).padStart(2, "0")}:${mm} ${ampm}`,
-    date: `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`,
+    date: `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`,
   };
 }
 
 export default function LiveTVScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { channels, liveCategories, toggleFavorite, isFavorite, getStreamUrl, addToHistory, loading, loginType } = useIPTV();
   const [search, setSearch] = useState("");
@@ -73,13 +78,14 @@ export default function LiveTVScreen() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const { time, date } = useNow();
 
+  const isPortrait = height > width;
+  const isWeb = Platform.OS === "web";
   const isMobile = width < 700;
-  const isTablet = width >= 700 && width < 1100;
   const sidebarVisible = !isMobile;
 
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
-  const leftPadding = Platform.OS === "web" ? 0 : insets.left;
+  const topPadding = isWeb ? 67 : insets.top;
+  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const leftPadding = isWeb ? 0 : insets.left;
 
   const allCategories = useMemo(
     () => [
@@ -112,8 +118,8 @@ export default function LiveTVScreen() {
   }, [channels, selectedCategory, search, sortBy, isFavorite]);
 
   const selectedLabel = allCategories.find((c) => c.categoryId === selectedCategory)?.categoryName || "All Channels";
-  const numCols = getGridCols(width);
-  const cardSize = getCardSize(width, numCols, sidebarVisible);
+  const numCols = getGridCols(width, isPortrait);
+  const cardSize = getCardSize(width, numCols, sidebarVisible, isPortrait);
 
   const openChannel = (channel: Channel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -141,7 +147,7 @@ export default function LiveTVScreen() {
           </View>
         </View>
         <View style={styles.topBarRight}>
-          <View style={[styles.searchBox, isMobile && { minWidth: 120 }]}>
+          <View style={[styles.searchBox, isMobile && { minWidth: 100, flex: 1 }]}>
             <Ionicons name="search" size={15} color={Colors.textMuted} />
             <TextInput
               style={styles.searchInput}
@@ -254,7 +260,7 @@ export default function LiveTVScreen() {
               data={filtered}
               keyExtractor={(c) => c.streamId}
               numColumns={numCols}
-              contentContainerStyle={[styles.gridList, { paddingBottom: bottomPadding + 80 }]}
+              contentContainerStyle={[styles.gridList, { paddingBottom: bottomPadding + 90 }]}
               columnWrapperStyle={styles.gridRow}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
@@ -272,7 +278,7 @@ export default function LiveTVScreen() {
               key="list"
               data={filtered}
               keyExtractor={(c) => c.streamId}
-              contentContainerStyle={[styles.listContent, { paddingBottom: bottomPadding + 80 }]}
+              contentContainerStyle={[styles.listContent, { paddingBottom: bottomPadding + 90 }]}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <ChannelListRow
@@ -295,12 +301,12 @@ function ChannelGridCard({ channel, cardSize, onPress, isFav, onToggleFav }: {
 }) {
   const quality = getQualityTag(channel.name);
   const qColor = quality ? getQualityColor(quality) : Colors.textMuted;
-  const logoSize = Math.max(32, Math.min(cardSize * 0.55, 64));
-  const fontSize = cardSize < 90 ? 9 : 11;
+  const logoSize = Math.max(28, Math.min(cardSize * 0.52, 60));
+  const fontSize = cardSize < 80 ? 8 : cardSize < 100 ? 10 : 11;
 
   return (
     <Pressable style={({ pressed }) => [styles.gridCard, { width: cardSize }, pressed && styles.cardPressed]} onPress={onPress}>
-      <View style={[styles.gridCardLogo, { width: logoSize + 16, height: logoSize }]}>
+      <View style={[styles.gridCardLogo, { width: logoSize + 14, height: logoSize }]}>
         {channel.streamIcon ? (
           <Image source={{ uri: channel.streamIcon }} style={{ width: logoSize, height: logoSize - 4 }} resizeMode="contain" />
         ) : (
@@ -314,7 +320,7 @@ function ChannelGridCard({ channel, cardSize, onPress, isFav, onToggleFav }: {
       </View>
       <Text style={[styles.gridCardName, { fontSize }]} numberOfLines={2}>{channel.name}</Text>
       <View style={styles.gridCardActions}>
-        <Pressable style={styles.favBtnSmall} onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+        <Pressable style={styles.favBtnSmall} onPress={onToggleFav} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name={isFav ? "heart" : "heart-outline"} size={12} color={isFav ? Colors.danger : Colors.textMuted} />
         </Pressable>
         <Pressable style={styles.playBtnSmall} onPress={onPress}>
@@ -370,14 +376,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.surface,
-    flexWrap: "wrap",
     gap: 8,
+    minHeight: 48,
   },
-  topBarMobile: { paddingVertical: 6 },
-  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  topBarRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  topBarMobile: { paddingVertical: 6, flexWrap: "wrap" },
+  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   timeBlock: { gap: 1 },
-  timeText: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.text },
+  timeText: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.text },
   dateText: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
   categoryLabel: {
     flexDirection: "row",
@@ -389,7 +395,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    maxWidth: 200,
+    maxWidth: 180,
   },
   categoryLabelText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: Colors.text, flexShrink: 1 },
   channelCount: {
@@ -407,16 +413,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 9,
     paddingHorizontal: 9,
-    height: 34,
+    height: 36,
     gap: 5,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    minWidth: 160,
+    minWidth: 120,
   },
   searchInput: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.text },
   iconBtn: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 9,
     backgroundColor: Colors.card,
     alignItems: "center",
@@ -439,6 +445,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    minHeight: 32,
+    justifyContent: "center",
   },
   mobileCategoryChipActive: {
     backgroundColor: Colors.accentSoft,
@@ -458,10 +466,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     gap: 7,
     position: "relative",
     overflow: "hidden",
+    minHeight: 44,
   },
   sidebarItemActive: { backgroundColor: Colors.accentSoft },
   sidebarActiveBar: {
@@ -477,8 +486,8 @@ const styles = StyleSheet.create({
   sidebarLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted, flex: 1 },
   sidebarLabelActive: { color: Colors.text, fontFamily: "Inter_600SemiBold" },
   contentArea: { flex: 1 },
-  gridList: { padding: 12 },
-  gridRow: { gap: 10, marginBottom: 10, justifyContent: "flex-start" },
+  gridList: { padding: 10 },
+  gridRow: { gap: 8, marginBottom: 8, justifyContent: "flex-start" },
   gridCard: {
     backgroundColor: Colors.surface,
     borderRadius: 10,
@@ -487,6 +496,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     gap: 5,
+    minHeight: 80,
   },
   cardPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
   gridCardLogo: {
@@ -496,11 +506,11 @@ const styles = StyleSheet.create({
   },
   gridCardName: { fontFamily: "Inter_500Medium", color: Colors.text, textAlign: "center", lineHeight: 14 },
   gridCardActions: { flexDirection: "row", gap: 6, alignItems: "center" },
-  favBtnSmall: { padding: 2 },
+  favBtnSmall: { padding: 4 },
   playBtnSmall: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.accent,
     alignItems: "center",
     justifyContent: "center",
@@ -510,7 +520,7 @@ const styles = StyleSheet.create({
     bottom: -3,
     right: -3,
     borderRadius: 4,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     paddingVertical: 1,
     borderWidth: 1,
   },
@@ -531,6 +541,7 @@ const styles = StyleSheet.create({
     gap: 10,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    minHeight: 56,
   },
   listLogo: {
     width: 46,
@@ -545,11 +556,11 @@ const styles = StyleSheet.create({
   listInfo: { flex: 1 },
   listName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.text },
   listEpg: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
-  favBtn: { padding: 4 },
+  favBtn: { padding: 4, minHeight: 44, justifyContent: "center" },
   playBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.accent,
     alignItems: "center",
     justifyContent: "center",

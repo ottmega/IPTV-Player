@@ -1,0 +1,222 @@
+Redesign the mobile user interface of the OTTMEGA IPTV React Native / Expo application to make it fully responsive and natural on modern Android mobile devices.
+
+The current mobile layout feels unnatural in both portrait and landscape orientations. The UI must be redesigned so it adapts correctly to different screen sizes and orientations.
+
+The application must support all modern Android devices and full-screen displays.
+
+DEVICE SUPPORT
+
+Ensure the UI works correctly on:
+
+Small Android phones (360px width)
+
+Medium phones (390–420px width)
+
+Large phones (430px+ width)
+
+Foldable devices
+
+Tablets
+
+Landscape phones
+
+The layout must dynamically adapt to screen size.
+
+Use responsive APIs such as:
+
+useWindowDimensions
+Dimensions
+react-native-responsive-screen
+RESPONSIVE BREAKPOINT SYSTEM
+
+Define responsive breakpoints:
+
+Small phone: width < 380
+Normal phone: 380–420
+Large phone: 420–600
+Tablet: > 600
+
+Use these breakpoints to adjust layout, grid columns, spacing, and font sizes.
+
+PORTRAIT MODE DESIGN
+
+Portrait layout must use a vertical stacked mobile dashboard.
+
+Structure:
+
+SafeAreaView
+ScrollView
+Main Container
+
+Header
+Announcement Bar
+Promo Banner
+Feature Grid
+Continue Watching
+Content Sections
+
+Feature grid should include:
+
+Live TV
+Movies
+Series
+EPG
+Catch-Up
+Favorites
+Settings
+
+Grid rules:
+
+Small phones → 2 columns
+Large phones → 3 columns
+Tablet → 4 columns
+
+Feature cards must be compact and evenly spaced.
+
+LANDSCAPE MODE DESIGN
+
+Landscape layout must not simply rotate the portrait UI.
+
+Create a horizontal browsing layout.
+
+Example layout:
+
+Left Navigation Panel
+Main Content Area
+Optional Quick Actions
+
+Left navigation menu:
+
+Home
+Live TV
+Movies
+Series
+EPG
+Favorites
+Settings
+
+Main content area:
+
+Continue Watching
+Recommended Channels
+Movie Posters
+Series Posters
+
+Cards should appear in a wider grid.
+
+FULLSCREEN MOBILE SUPPORT
+
+Enable full-screen support for modern Android devices.
+
+Use edge-to-edge layout:
+
+SafeAreaView
+StatusBar translucent
+
+Ensure the UI respects:
+
+device notch
+
+camera cutouts
+
+gesture navigation areas
+
+RESPONSIVE GRID SYSTEM
+
+Content grids must scale dynamically.
+
+Example rules:
+
+Channel grid:
+small phone → 2 columns
+large phone → 3 columns
+tablet → 4–5 columns
+
+Movie posters:
+small phone → 2 columns
+large phone → 3 columns
+tablet → 5 columns
+
+Use responsive grid calculations.
+
+Example:
+
+crossAxisCount based on screen width
+IMAGE SCALING RULES
+
+Images must maintain consistent ratios.
+
+Movie posters → 2:3 ratio
+Channel cards → square
+Promo banners → 16:9
+
+Avoid fixed pixel widths.
+
+Use flexbox or percentage widths.
+
+TOUCH AND SPACING OPTIMIZATION
+
+Ensure all UI elements follow mobile usability rules.
+
+Minimum touch target size:
+
+48px
+
+Spacing rules:
+
+Card spacing → 12–16px
+Section spacing → 20–24px
+Screen padding → 16px
+VIDEO PLAYER RESPONSIVENESS
+
+Player screen must adapt to orientation.
+
+Portrait mode:
+
+Video player at top
+Channel info below
+Scrollable channel list
+
+Landscape mode:
+
+Fullscreen video
+Overlay player controls
+Channel zapping gestures
+PERFORMANCE OPTIMIZATION
+
+Optimize rendering for large IPTV playlists.
+
+Use:
+
+FlatList
+FlashList
+memoized components
+image caching
+
+Avoid rendering large lists inside ScrollView.
+
+TESTING REQUIREMENTS
+
+Verify layout on the following screen sizes:
+
+360x800
+390x844
+412x915
+430x932
+tablet portrait
+tablet landscape
+
+Ensure:
+
+No overflow
+No stretched cards
+Proper spacing
+Natural UI layout
+Smooth orientation switching
+BUILD
+
+Ensure the application runs successfully:
+
+expo start
+
+and compiles without UI errors.

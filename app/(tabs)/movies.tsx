@@ -18,26 +18,34 @@ import { useIPTV, Movie } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-function getNumCols(w: number): number {
-  if (w < 450) return 2;
-  if (w < 650) return 3;
-  if (w < 950) return 4;
-  if (w < 1300) return 5;
-  return 6;
+function getNumCols(w: number, isPortrait: boolean): number {
+  if (isPortrait) {
+    if (w < 380) return 2;
+    if (w < 600) return 3;
+    return 4;
+  }
+  if (w < 500) return 3;
+  if (w < 700) return 4;
+  if (w < 1000) return 5;
+  if (w < 1300) return 6;
+  return 7;
 }
 
 export default function MoviesScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { movies, movieCategories, toggleFavorite, isFavorite, loading, loginType } = useIPTV();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
-  const horizPad = 16;
-  const numCols = getNumCols(width);
-  const gap = 8;
+  const isPortrait = height > width;
+  const isWeb = Platform.OS === "web";
+
+  const topPadding = isWeb ? 67 : insets.top;
+  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const horizPad = 12;
+  const numCols = getNumCols(width, isPortrait);
+  const gap = isPortrait ? 8 : 10;
   const cardWidth = Math.floor((width - horizPad * 2 - gap * (numCols - 1)) / numCols);
 
   const allCategories = useMemo(
@@ -68,7 +76,7 @@ export default function MoviesScreen() {
           <Ionicons name="search" size={15} color={Colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search movies..."
+            placeholder="Search..."
             placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -117,7 +125,7 @@ export default function MoviesScreen() {
           data={filtered}
           keyExtractor={(m) => m.streamId}
           numColumns={numCols}
-          contentContainerStyle={[styles.grid, { paddingHorizontal: horizPad, paddingBottom: bottomPadding + 80 }]}
+          contentContainerStyle={[styles.grid, { paddingHorizontal: horizPad, paddingBottom: bottomPadding + 90 }]}
           showsVerticalScrollIndicator={false}
           columnWrapperStyle={{ gap, marginBottom: gap }}
           renderItem={({ item }) => (
@@ -144,7 +152,7 @@ function MovieCard({ movie, cardWidth, isFav, onPress, onToggleFav }: {
   movie: Movie; cardWidth: number; isFav: boolean; onPress: () => void; onToggleFav: () => void;
 }) {
   const posterH = cardWidth * 1.5;
-  const titleSize = cardWidth < 100 ? 9 : cardWidth < 130 ? 10 : 12;
+  const titleSize = cardWidth < 90 ? 9 : cardWidth < 110 ? 10 : 12;
 
   return (
     <Pressable style={({ pressed }) => [{ width: cardWidth }, pressed && styles.cardPressed]} onPress={onPress}>
@@ -153,10 +161,10 @@ function MovieCard({ movie, cardWidth, isFav, onPress, onToggleFav }: {
           <Image source={{ uri: movie.streamIcon }} style={styles.poster} resizeMode="cover" />
         ) : (
           <View style={styles.posterPlaceholder}>
-            <Ionicons name="film" size={Math.max(20, cardWidth * 0.2)} color={Colors.textMuted} />
+            <Ionicons name="film" size={Math.max(18, cardWidth * 0.2)} color={Colors.textMuted} />
           </View>
         )}
-        <Pressable style={styles.favOverlay} onPress={onToggleFav} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+        <Pressable style={styles.favOverlay} onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
           <Ionicons name={isFav ? "heart" : "heart-outline"} size={12} color={isFav ? Colors.danger : "#fff"} />
         </Pressable>
         {movie.rating && (
@@ -178,11 +186,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 10,
-    gap: 12,
+    paddingBottom: 8,
+    gap: 10,
+    minHeight: 48,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.text },
+  title: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.text },
   countBadge: {
     backgroundColor: Colors.surface,
     borderRadius: 10,
@@ -191,7 +200,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  count: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+  count: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -203,10 +212,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     flex: 1,
-    maxWidth: 280,
+    maxWidth: 240,
   },
   searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.text },
-  categoryList: { paddingBottom: 10, gap: 7 },
+  categoryList: { paddingBottom: 8, gap: 7 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -214,6 +223,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    minHeight: 32,
+    justifyContent: "center",
   },
   chipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   chipText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
@@ -232,9 +243,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 5,
     right: 5,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",

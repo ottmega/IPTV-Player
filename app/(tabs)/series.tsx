@@ -18,26 +18,34 @@ import { useIPTV, SeriesItem } from "@/context/IPTVContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 
-function getNumCols(w: number): number {
-  if (w < 450) return 2;
-  if (w < 650) return 3;
-  if (w < 950) return 4;
-  if (w < 1300) return 5;
-  return 6;
+function getNumCols(w: number, isPortrait: boolean): number {
+  if (isPortrait) {
+    if (w < 380) return 2;
+    if (w < 600) return 3;
+    return 4;
+  }
+  if (w < 500) return 3;
+  if (w < 700) return 4;
+  if (w < 1000) return 5;
+  if (w < 1300) return 6;
+  return 7;
 }
 
 export default function SeriesScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { series, seriesCategories, toggleFavorite, isFavorite, loading, loginType } = useIPTV();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
-  const horizPad = 16;
-  const numCols = getNumCols(width);
-  const gap = 10;
+  const isPortrait = height > width;
+  const isWeb = Platform.OS === "web";
+
+  const topPadding = isWeb ? 67 : insets.top;
+  const bottomPadding = isWeb ? 34 : insets.bottom;
+  const horizPad = 12;
+  const numCols = getNumCols(width, isPortrait);
+  const gap = isPortrait ? 8 : 10;
   const cardWidth = Math.floor((width - horizPad * 2 - gap * (numCols - 1)) / numCols);
 
   const allCategories = useMemo(
@@ -68,7 +76,7 @@ export default function SeriesScreen() {
           <Ionicons name="search" size={15} color={Colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search series..."
+            placeholder="Search..."
             placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -117,7 +125,7 @@ export default function SeriesScreen() {
           data={filtered}
           keyExtractor={(s) => s.seriesId}
           numColumns={numCols}
-          contentContainerStyle={[styles.grid, { paddingHorizontal: horizPad, paddingBottom: bottomPadding + 80 }]}
+          contentContainerStyle={[styles.grid, { paddingHorizontal: horizPad, paddingBottom: bottomPadding + 90 }]}
           showsVerticalScrollIndicator={false}
           columnWrapperStyle={{ gap, marginBottom: gap }}
           renderItem={({ item }) => (
@@ -144,7 +152,7 @@ function SeriesCard({ item, cardWidth, isFav, onPress, onToggleFav }: {
   item: SeriesItem; cardWidth: number; isFav: boolean; onPress: () => void; onToggleFav: () => void;
 }) {
   const coverH = cardWidth * 1.4;
-  const titleSize = cardWidth < 100 ? 10 : cardWidth < 130 ? 11 : 13;
+  const titleSize = cardWidth < 90 ? 9 : cardWidth < 110 ? 10 : 12;
 
   return (
     <Pressable style={({ pressed }) => [{ width: cardWidth }, pressed && styles.cardPressed]} onPress={onPress}>
@@ -153,10 +161,10 @@ function SeriesCard({ item, cardWidth, isFav, onPress, onToggleFav }: {
           <Image source={{ uri: item.cover }} style={styles.cover} resizeMode="cover" />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <Ionicons name="play-circle" size={Math.max(24, cardWidth * 0.3)} color={Colors.textMuted} />
+            <Ionicons name="play-circle" size={Math.max(20, cardWidth * 0.28)} color={Colors.textMuted} />
           </View>
         )}
-        <Pressable style={styles.favOverlay} onPress={onToggleFav} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+        <Pressable style={styles.favOverlay} onPress={onToggleFav} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
           <Ionicons name={isFav ? "heart" : "heart-outline"} size={13} color={isFav ? Colors.danger : "#fff"} />
         </Pressable>
         {item.rating && (
@@ -168,7 +176,7 @@ function SeriesCard({ item, cardWidth, isFav, onPress, onToggleFav }: {
       </View>
       <Text style={[styles.seriesName, { fontSize: titleSize }]} numberOfLines={2}>{item.name}</Text>
       {item.year && <Text style={styles.seriesYear}>{item.year}</Text>}
-      {item.genre && cardWidth >= 120 && <Text style={styles.seriesGenre} numberOfLines={1}>{item.genre}</Text>}
+      {item.genre && cardWidth >= 110 && <Text style={styles.seriesGenre} numberOfLines={1}>{item.genre}</Text>}
     </Pressable>
   );
 }
@@ -179,11 +187,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 10,
-    gap: 12,
+    paddingBottom: 8,
+    gap: 10,
+    minHeight: 48,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.text },
+  title: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.text },
   countBadge: {
     backgroundColor: Colors.surface,
     borderRadius: 10,
@@ -192,7 +201,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  count: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+  count: { fontSize: 11, fontFamily: "Inter_500Medium", color: Colors.textMuted },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -204,10 +213,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     flex: 1,
-    maxWidth: 280,
+    maxWidth: 240,
   },
   searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.text },
-  categoryList: { paddingBottom: 10, gap: 7 },
+  categoryList: { paddingBottom: 8, gap: 7 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -215,6 +224,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    minHeight: 32,
+    justifyContent: "center",
   },
   chipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   chipText: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
@@ -225,35 +236,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: Colors.surface,
-    marginBottom: 6,
+    marginBottom: 5,
   },
   cover: { width: "100%", height: "100%" },
   coverPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.card },
   favOverlay: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: 5,
+    right: 5,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
   ratingBadge: {
     position: "absolute",
-    bottom: 6,
-    left: 6,
+    bottom: 5,
+    left: 5,
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
     backgroundColor: "rgba(0,0,0,0.65)",
-    borderRadius: 6,
-    paddingHorizontal: 5,
+    borderRadius: 5,
+    paddingHorizontal: 4,
     paddingVertical: 2,
   },
-  ratingText: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  seriesName: { fontFamily: "Inter_600SemiBold", color: Colors.text, lineHeight: 16 },
+  ratingText: { fontSize: 8, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  seriesName: { fontFamily: "Inter_600SemiBold", color: Colors.text, lineHeight: 15 },
   seriesYear: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
   seriesGenre: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 1 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },

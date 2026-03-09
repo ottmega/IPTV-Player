@@ -3,9 +3,8 @@ import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
-import React, { useEffect } from "react";
+import React from "react";
 import { Ionicons } from "@expo/vector-icons";
-import * as ScreenOrientation from "expo-screen-orientation";
 import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
@@ -48,7 +47,7 @@ function ClassicTabLayout() {
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : Colors.surface,
-          borderTopWidth: isWeb ? 1 : 0,
+          borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
@@ -56,9 +55,9 @@ function ClassicTabLayout() {
         tabBarBackground: () =>
           isIOS ? (
             <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface }]} />
-          ) : null,
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface + "F2" }]} />
+          ),
       }}
     >
       <Tabs.Screen
@@ -111,12 +110,6 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  useEffect(() => {
-    if (Platform.OS !== "web") {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-    }
-  }, []);
-
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }

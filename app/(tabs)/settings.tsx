@@ -28,7 +28,7 @@ const DEFAULT_PIN = "0000";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { userInfo, loginType, credentials, channels, movies, series, clearHistory, refreshContent, logout, history } = useIPTV();
 
   const [playerType, setPlayerType] = useState<PlayerType>("default");
@@ -46,9 +46,10 @@ export default function SettingsScreen() {
   const [newPin, setNewPin] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  const isPortrait = height > width;
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
-  const isWide = width >= 700;
+  const isWide = !isPortrait && width >= 700;
 
   const xtreamCreds = loginType === "xtream" ? (credentials as XtreamCredentials) : null;
 
