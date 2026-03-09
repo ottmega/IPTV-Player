@@ -166,7 +166,6 @@ export default function PlayerScreen() {
   const loadStartTimeRef = useRef<number>(Date.now());
   const stallCountRef = useRef(0);
   const prefetchAbortRef = useRef<AbortController | null>(null);
-  const stallReloadRef = useRef<() => void>(() => {});
 
   // ── Derived Values ──────────────────────────────────────────────────────────
   const isPlaying = status?.isLoaded ? status.isPlaying : false;
@@ -215,19 +214,12 @@ export default function PlayerScreen() {
     return () => ctrl.abort();
   }, [adjacentChannels, isLive, channels.length]);
 
-  // ── Buffering stall timer (100ms tick to track buffering duration) ───────────
+  // ── Buffering duration tracker (display only, no auto-reload) ──────────────
   useEffect(() => {
     bufferStallTimer.current = setInterval(() => {
       if (bufferingStartRef.current !== null && !isPausedByUser.current) {
         const elapsed = Date.now() - bufferingStartRef.current;
         setBufferingSeconds(Math.floor(elapsed / 1000));
-        const timeout = ADAPTIVE_CONFIG[adaptiveModeRef.current].stallTimeout;
-        if (elapsed > timeout) {
-          bufferingStartRef.current = null;
-          stallCountRef.current += 1;
-          setStallCount(stallCountRef.current);
-          stallReloadRef.current();
-        }
       }
     }, 500);
     return () => { if (bufferStallTimer.current) clearInterval(bufferStallTimer.current); };
@@ -313,21 +305,6 @@ export default function PlayerScreen() {
     }
   }, []);
 
-  // ── Stall auto-reload ────────────────────────────────────────────────────────
-  const triggerStallReload = useCallback(async () => {
-    if (isPausedByUser.current) return;
-    playbackStarted.current = false;
-    loadStartTimeRef.current = Date.now();
-    bufferingStartRef.current = null;
-    setBufferingSeconds(0);
-    setReconnecting(true);
-    try {
-      await videoRef.current?.loadAsync({ uri: currentUrlRef.current }, { shouldPlay: true });
-    } catch {}
-    setReconnecting(false);
-  }, []);
-
-  useEffect(() => { stallReloadRef.current = triggerStallReload; }, [triggerStallReload]);
 
   // ── Channel zap animation ────────────────────────────────────────────────────
   const showZapBanner = (channelName: string) => {
@@ -1010,15 +987,6 @@ export default function PlayerScreen() {
           </Pressable>
         )}
 
-        {/* Long-stall banner (separate from controls, always visible when buffering long) */}
-        {streamHealth === "buffering" && bufferingSeconds >= 7 && !reconnecting && !isSwitching && (
-          <View style={[styles.stallBanner, { bottom: bottomPad + 70 }]} pointerEvents="none">
-            <ActivityIndicator size="small" color={Colors.accent} />
-            <Text style={styles.stallText}>
-              Buffering {bufferingSeconds}s  ·  Auto-reload in {Math.max(0, Math.ceil((retryConfig.stallTimeout - bufferingSeconds * 1000) / 1000))}s
-            </Text>
-          </View>
-        )}
       </View>
 
       <PlayerSettingsSheet
@@ -1321,13 +1289,6 @@ const styles = StyleSheet.create({
   },
   muteBannerText: { flex: 1, color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
 
-  stallBanner: {
-    position: "absolute", left: 16, right: 16,
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(0,0,0,0.82)", borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: Colors.accent + "40",
-  },
-  stallText: { flex: 1, color: "rgba(255,255,255,0.8)", fontSize: 12, fontFamily: "Inter_400Regular" },
 
   trackMenu: { position: "absolute", backgroundColor: "rgba(8,8,20,0.97)", borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder, minWidth: 200, maxWidth: 260, zIndex: 50, overflow: "hidden" },
   trackMenuTitle: { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textMuted, letterSpacing: 1, textTransform: "uppercase", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
